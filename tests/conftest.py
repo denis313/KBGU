@@ -4,6 +4,9 @@ os.environ.setdefault(
     "DATABASE_URL", "postgresql+psycopg://calorie:calorie@localhost:5432/calorie_tracker_test"
 )
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", os.environ["DATABASE_URL"])
+os.environ["TELEGRAM_BOT_TOKEN"] = "123456:TEST-TOKEN"
+os.environ["TELEGRAM_WEBHOOK_SECRET"] = "test-webhook-secret"
+os.environ["WEBAPP_URL"] = "https://tracker.example.com"
 
 import pytest  # noqa: E402
 from alembic import command  # noqa: E402

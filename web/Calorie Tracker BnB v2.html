@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Calorie Tracker</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root {
     --bg: #f6f5f1;
@@ -25,7 +26,7 @@
     --radius: 16px;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       --bg: #141513;
       --surface: #1d1f1c;
       --surface-2: #262825;
@@ -43,6 +44,24 @@
       --warn-text: #f1d49a;
       --shadow: 0 1px 2px rgb(0 0 0 / .3);
     }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141513;
+    --surface: #1d1f1c;
+    --surface-2: #262825;
+    --text: #ecebe6;
+    --muted: #a3a197;
+    --border: #33352f;
+    --accent: #5cc093;
+    --accent-soft: #1f3a2d;
+    --on-accent: #0e1a14;
+    --protein: #7aa2f7;
+    --fat: #e8b65a;
+    --carbs: #b392f0;
+    --danger: #ef7a72;
+    --warn-bg: #3a2f17;
+    --warn-text: #f1d49a;
+    --shadow: 0 1px 2px rgb(0 0 0 / .3);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
@@ -150,6 +169,8 @@
 <body>
 
 <!-- ============ AUTH ============ -->
+<div id="loading" class="auth hidden"><div class="muted">Loading…</div></div>
+
 <section id="auth" class="auth hidden">
   <div class="card">
     <div class="brand"><div class="logo">
@@ -341,7 +362,13 @@
     set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
   };
 
-  const state = { token: store.get("ct_token"), user: null, day: new Date(), tab: "today", menu: null, source: "foods", pick: null, goal: "maintain", allergens: new Set() };
+  // Telegram Mini App: present when opened from the bot, initData is signed by Telegram.
+  const tg = window.Telegram && window.Telegram.WebApp;
+  const inTelegram = Boolean(tg && tg.initData);
+
+  // Inside Telegram the token stays in memory: several Telegram accounts on one
+  // device share WebView storage, so every launch signs in again from initData.
+  const state = { token: inTelegram ? null : store.get("ct_token"), user: null, day: new Date(), tab: "today", menu: null, source: "foods", pick: null, goal: "maintain", allergens: new Set() };
 
   const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const fmt = (n) => Math.round(n).toLocaleString();
@@ -353,7 +380,10 @@
     const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
     if (res.status === 204) return null;
     const data = await res.json().catch(() => null);
-    if (res.status === 401 && state.token) { logout(); throw new Error("Session expired, please sign in again."); }
+    if (res.status === 401 && state.token) {
+      if (inTelegram) { state.token = null; telegramLogin(); throw new Error("Session expired, signing in again…"); }
+      logout(); throw new Error("Session expired, please sign in again.");
+    }
     if (!res.ok) {
       const d = data && data.detail;
       const msg = Array.isArray(d) ? d.map((e) => `${e.loc?.slice(-1)[0] ?? ""}: ${e.msg}`).join("; ") : d || `Request failed (${res.status})`;
@@ -395,14 +425,46 @@
 
   function logout() {
     state.token = null; state.user = null; store.set("ct_token", null);
+    $("#loading").classList.add("hidden");
     $("#app").classList.add("hidden"); $("#bnb").classList.add("hidden"); $("#auth").classList.remove("hidden");
   }
   $("#logout").addEventListener("click", logout);
 
+  function applyTelegramTheme() {
+    const p = tg.themeParams || {}, root = document.documentElement.style;
+    document.documentElement.dataset.theme = tg.colorScheme === "dark" ? "dark" : "light";
+    // Native Telegram surfaces and text; the green brand accent is kept.
+    const map = { "--bg": p.secondary_bg_color, "--surface": p.section_bg_color || p.bg_color, "--text": p.text_color, "--muted": p.hint_color, "--danger": p.destructive_text_color };
+    for (const [k, v] of Object.entries(map)) v ? root.setProperty(k, v) : root.removeProperty(k);
+    if (p.secondary_bg_color) { tg.setHeaderColor?.(p.secondary_bg_color); tg.setBackgroundColor?.(p.secondary_bg_color); }
+    tg.setBottomBarColor?.(p.section_bg_color || p.bg_color || p.secondary_bg_color);
+  }
+
+  function initTelegram() {
+    tg.ready(); tg.expand(); tg.disableVerticalSwipes?.();
+    applyTelegramTheme(); tg.onEvent("themeChanged", applyTelegramTheme);
+    tg.BackButton.onClick(onBack);
+    $("#logout").classList.add("hidden");
+  }
+
+  async function telegramLogin() {
+    $("#loading").classList.remove("hidden");
+    try {
+      const res = await api("/api/auth/telegram", { method: "POST", body: { init_data: tg.initData } });
+      state.token = res.access_token; state.user = res.user;
+      $("#loading").classList.add("hidden"); enterApp();
+    } catch (err) {
+      logout(); $("#authError").textContent = `Telegram sign-in failed: ${err.message}`;
+    }
+  }
+
   async function boot() {
+    if (inTelegram) { initTelegram(); return telegramLogin(); }
     if (!state.token) return logout();
     try { state.user = await api("/api/auth/me"); enterApp(); } catch { logout(); }
   }
+
+  const haptic = (type) => { try { inTelegram && tg.HapticFeedback.notificationOccurred(type); } catch {} };
 
   function enterApp() {
     $("#auth").classList.add("hidden"); $("#app").classList.remove("hidden"); $("#bnb").classList.remove("hidden");
@@ -455,6 +517,7 @@
     const arc = $("#ringArc");
     arc.setAttribute("stroke-dasharray", `${frac * circ} ${circ}`);
     arc.setAttribute("stroke", over ? "var(--fat)" : "var(--accent)");
+    arc.style.visibility = frac > 0 ? "visible" : "hidden";  // a round cap would draw a dot at 0
     $("#macroBars").innerHTML =
       macroBar("Protein", "var(--protein)", tot.protein, t?.protein) +
       macroBar("Fat", "var(--fat)", tot.fat, t?.fat) +
@@ -488,9 +551,16 @@
     if (!state.user?.has_profile) return switchTab("profile");
     $("#mealSelect").value = meal || defaultMeal();
     $("#sheet").classList.remove("hidden"); $("#sheetBackdrop").classList.remove("hidden");
-    showSearch(); $("#searchInput").value = ""; search(); $("#searchInput").focus();
+    showSearch(); $("#searchInput").value = ""; search();
+    if (inTelegram) tg.BackButton.show(); else $("#searchInput").focus();
   }
-  function closeSheet() { $("#sheet").classList.add("hidden"); $("#sheetBackdrop").classList.add("hidden"); }
+  function closeSheet() {
+    $("#sheet").classList.add("hidden"); $("#sheetBackdrop").classList.add("hidden");
+    if (inTelegram) tg.BackButton.hide();
+  }
+  function onBack() {
+    if (!$("#amountStep").classList.contains("hidden")) showSearch(); else closeSheet();
+  }
   $("#sheetBackdrop").addEventListener("click", closeSheet);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
 
@@ -551,7 +621,7 @@
     else Object.assign(body, { dish_id: p.id, servings: a });
     try {
       await api("/api/diary", { method: "POST", body });
-      closeSheet(); toast(`Added ${p.name}`);
+      closeSheet(); haptic("success"); toast(`Added ${p.name}`);
       if (state.tab !== "today") switchTab("today"); else loadToday();
     } catch (err) { $("#addError").textContent = err.message; }
   });

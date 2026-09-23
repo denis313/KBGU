@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
-from app.routers import auth, catalog, diary, menu, profile
+from app.routers import auth, catalog, diary, menu, profile, telegram
 
 WEB_PAGE = Path(__file__).resolve().parent.parent / "web" / "Calorie Tracker BnB v2.html"
 
@@ -13,7 +13,7 @@ app = FastAPI(
     description="Calorie targets, food diary and generated menus backed by PostgreSQL.",
 )
 
-for module in (auth, profile, catalog, diary, menu):
+for module in (auth, profile, catalog, diary, menu, telegram):
     app.include_router(module.router)
 
 

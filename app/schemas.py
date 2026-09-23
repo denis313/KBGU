@@ -23,9 +23,13 @@ class LoginIn(BaseModel):
     password: str
 
 
+class TelegramLoginIn(BaseModel):
+    init_data: str = Field(min_length=1, max_length=4096)
+
+
 class UserOut(ORM):
     id: int
-    email: str
+    email: str | None
     name: str
     has_profile: bool = False
 

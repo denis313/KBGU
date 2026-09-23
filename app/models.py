@@ -12,6 +12,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     ARRAY,
+    BigInteger,
     Date,
     DateTime,
     Enum,
@@ -78,8 +79,12 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
+    # Email/password accounts fill email + password_hash; Telegram Mini App
+    # accounts are identified by telegram_id and may have neither.
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[str | None] = mapped_column(String(255))
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, index=True)
+    telegram_username: Mapped[str | None] = mapped_column(String(64))
     name: Mapped[str] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

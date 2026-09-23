@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 7
 
+    # Telegram Mini App. WEBAPP_URL is the public HTTPS address of this app.
+    telegram_bot_token: str = ""
+    telegram_webhook_secret: str = ""
+    webapp_url: str = ""
+    telegram_init_data_max_age: int = 60 * 60 * 24
+
 
 @lru_cache
 def get_settings() -> Settings:

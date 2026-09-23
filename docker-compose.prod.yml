@@ -1,0 +1,42 @@
+# Production: PostgreSQL + app + Caddy (automatic HTTPS, required by Telegram Mini Apps).
+# Usage: docker compose -f docker-compose.prod.yml up -d --build   (settings come from .env)
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: calorie
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: calorie_tracker
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calorie"]
+      interval: 3s
+      retries: 20
+
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://calorie:${POSTGRES_PASSWORD}@db:5432/calorie_tracker
+      WEBAPP_URL: https://${DOMAIN:?set DOMAIN in .env}
+    depends_on:
+      db: { condition: service_healthy }
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

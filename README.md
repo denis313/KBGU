@@ -2,6 +2,11 @@
 
 A calorie tracker with registration, a food diary, personal calorie and macro
 targets, and daily menus generated from a curated database of ready-made dishes.
+It works in a browser and as a **Telegram Mini App**.
+
+> **Deploying the Telegram bot to a server:** step-by-step guide in Russian in
+> [DEPLOY.md](DEPLOY.md).
+
 It runs on **FastAPI**, **PostgreSQL** and **SQLAlchemy 2 ORM**, with **Alembic**
 migrations. The mobile-first web UI with a bottom navigation bar is served from
 the same app.
@@ -87,6 +92,7 @@ and `ARRAY` columns (allergens). Migrations are in `alembic/versions`.
 | | |
 |---|---|
 | `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me` | Email and password accounts. Passwords are hashed with bcrypt. Sessions use JWT bearer tokens. |
+| `POST /api/auth/telegram` | Mini App sign-in with signed Telegram `initData` |
 | `GET/PUT /api/profile`, `GET /api/profile/targets` | Body data and preferences, and the computed energy plan |
 | `POST /api/calculator` | Public calculator (no account needed) |
 | `GET/POST /api/weights` | Weigh-ins. The latest one updates the profile and the targets. |
@@ -96,6 +102,29 @@ and `ARRAY` columns (allergens). Migrations are in `alembic/versions`.
 
 Interactive documentation is available at `/docs`.
 
+## Telegram Mini App
+
+The same page runs inside Telegram. When it is opened from the bot:
+
+* The user is signed in automatically. The page sends `Telegram.WebApp.initData`
+  to `POST /api/auth/telegram`, and the server verifies its HMAC signature with
+  the bot token (`app/services/telegram.py`). The account is created on first
+  launch and linked by `telegram_id`. No email or password is needed.
+* The page uses Telegram's theme colors and color scheme. The system Back
+  button closes the Add sheet, and haptic feedback confirms adding food. The
+  token stays in memory only, because several Telegram accounts on one device
+  share WebView storage.
+* The bot receives updates through a webhook (`POST /api/telegram/webhook`,
+  protected by `TELEGRAM_WEBHOOK_SECRET`). It answers `/start` with an
+  "Open tracker" button. `python -m app.bot setup` registers the webhook, the
+  chat menu button, the commands and the description. The container runs it
+  automatically on start. `python -m app.bot info` shows the webhook status.
+
+Settings: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `WEBAPP_URL` (public
+HTTPS URL). See `.env.example`. Production runs through
+`docker-compose.prod.yml`: PostgreSQL, the app, and Caddy with automatic
+Let's Encrypt HTTPS.
+
 ## Web UI
 
 `web/Calorie Tracker BnB v2.html` is a single-file, dependency-free page served
@@ -103,4 +132,4 @@ at `/`. It has sign-in/registration, onboarding, **Today** (a calorie ring,
 macro bars and meals), **Menu** (generate, swap, log), an **Add** bottom sheet
 (search foods or ready-made dishes), **Progress** (7-day chart and weight log)
 and **Profile** (targets and how they're calculated). It follows the system
-light/dark theme.
+light/dark theme, or Telegram's theme inside the Mini App.
