@@ -124,6 +124,8 @@ class Nutrition(BaseModel):
 
 
 class FoodIn(Nutrition):
+    """A user's own food; nutrition per 100 g."""
+
     name: str = Field(min_length=1, max_length=120)
     food_group: Literal["meat", "fish", "dairy", "egg", "plant"] = "plant"
     kcal: float = Field(ge=0, le=900)
@@ -132,6 +134,26 @@ class FoodIn(Nutrition):
     carbs: float = Field(ge=0, le=100)
     fiber: float = Field(default=0, ge=0, le=100)
     allergens: list[str] = []
+
+    @field_validator("name")
+    @classmethod
+    def clean_name(cls, v: str) -> str:
+        v = " ".join(v.split())
+        if not v:
+            raise ValueError("укажите название продукта")
+        return v
+
+    @field_validator("allergens")
+    @classmethod
+    def known_allergens(cls, v: list[str]) -> list[str]:
+        return ProfileIn.known_allergens(v)
+
+    @model_validator(mode="after")
+    def macros_fit_in_100g(self) -> "FoodIn":
+        # Small tolerance for rounding on package labels.
+        if self.protein + self.fat + self.carbs > 101:
+            raise ValueError("белки, жиры и углеводы вместе не могут превышать 100 г на 100 г продукта")
+        return self
 
 
 class FoodOut(Nutrition, ORM):

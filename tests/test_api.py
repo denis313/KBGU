@@ -148,3 +148,51 @@ def test_weight_log_updates_profile(client, auth):
 def test_web_page_is_served(client):
     r = client.get("/")
     assert r.status_code == 200 and "Трекер калорий" in r.text and 'lang="ru"' in r.text
+
+
+CUSTOM = {"name": "Сырники мамины", "kcal": 220, "protein": 15, "fat": 10, "carbs": 18}
+
+
+def test_custom_food_crud_and_privacy(client, auth):
+    food = client.post("/api/foods", headers=auth, json=CUSTOM).json()
+    assert food["is_custom"] and food["name"] == "Сырники мамины"
+
+    # Own foods come first in search and can be listed on their own.
+    assert client.get("/api/foods?q=сыр", headers=auth).json()[0]["id"] == food["id"]
+    assert [f["id"] for f in client.get("/api/foods?mine=true", headers=auth).json()] == [food["id"]]
+
+    # Same name (any case) is rejected; editing works and keeps the id.
+    dup = client.post("/api/foods", headers=auth, json={**CUSTOM, "name": "сырники МАМИНЫ"})
+    assert dup.status_code == 409 and "уже есть" in dup.json()["detail"]
+    edited = client.put(f"/api/foods/{food['id']}", headers=auth, json={**CUSTOM, "kcal": 240}).json()
+    assert edited["id"] == food["id"] and edited["kcal"] == 240
+
+    # Other users neither see nor change it.
+    other = client.post("/api/auth/register", json={"email": "o@example.com", "password": "password1", "name": "O"}).json()
+    oh = {"Authorization": f"Bearer {other['access_token']}"}
+    assert client.get("/api/foods?q=сырники", headers=oh).json() == []
+    assert client.put(f"/api/foods/{food['id']}", headers=oh, json=CUSTOM).status_code == 404
+    assert client.delete(f"/api/foods/{food['id']}", headers=oh).status_code == 404
+    assert client.post("/api/diary", headers=oh, json={"meal_type": "snack", "food_id": food["id"], "grams": 100}).status_code == 404
+
+
+def test_custom_food_validation(client, auth):
+    too_much = client.post("/api/foods", headers=auth, json={**CUSTOM, "protein": 60, "fat": 30, "carbs": 20})
+    assert too_much.status_code == 422 and "100 г" in too_much.text
+    assert client.post("/api/foods", headers=auth, json={**CUSTOM, "name": "   "}).status_code == 422
+    assert client.post("/api/foods", headers=auth, json={**CUSTOM, "kcal": -5}).status_code == 422
+
+
+def test_deleting_custom_food_keeps_diary_history(client, auth):
+    food = client.post("/api/foods", headers=auth, json=CUSTOM).json()
+    entry = client.post("/api/diary", headers=auth, json={"meal_type": "breakfast", "food_id": food["id"], "grams": 150}).json()
+    assert entry["kcal"] == 330
+
+    client.put(f"/api/foods/{food['id']}", headers=auth, json={**CUSTOM, "kcal": 300})
+    assert client.delete(f"/api/foods/{food['id']}", headers=auth).status_code == 204
+
+    kept = client.get("/api/diary", headers=auth).json()["entries"][0]
+    assert (kept["name"], kept["kcal"], kept["food_id"]) == ("Сырники мамины", 330, None)
+    # The entry can still be resized from its stored numbers.
+    resized = client.patch(f"/api/diary/{kept['id']}", headers=auth, json={"grams": 300}).json()
+    assert resized["kcal"] == 660

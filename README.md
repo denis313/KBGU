@@ -96,7 +96,7 @@ and `ARRAY` columns (allergens). Migrations are in `alembic/versions`.
 | `GET/PUT /api/profile`, `GET /api/profile/targets` | Body data and preferences, and the computed energy plan |
 | `POST /api/calculator` | Public calculator (no account needed) |
 | `GET/POST /api/weights` | Weigh-ins. The latest one updates the profile and the targets. |
-| `GET/POST/DELETE /api/foods`, `GET /api/dishes[/{id}]` | Catalogue search and custom foods |
+| `GET /api/foods[?q=&mine=true]`, `POST /api/foods`, `PUT/DELETE /api/foods/{id}`, `GET /api/dishes[/{id}]` | Catalogue search and the user's own foods: private, nutrition per 100 g, editable. Diary entries keep their numbers after an edit or delete. |
 | `GET /api/diary?date=`, `POST/PATCH/DELETE /api/diary[/{id}]`, `GET /api/diary/history` | Food diary |
 | `POST /api/menu/generate`, `GET /api/menu?date=`, `POST /api/menu/{id}/items/{item}/swap`, `POST /api/menu/{id}/log` | Menu generation |
 

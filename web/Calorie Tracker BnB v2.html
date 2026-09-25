@@ -164,6 +164,7 @@
   .sheet .body { padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); overflow-y: auto; }
   .result { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-top: 1px solid var(--border); cursor: pointer; border-radius: 8px; }
   .result:hover { background: var(--surface-2); }
+  #myFoods .result:first-child { border-top: 0; }
   .toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 14px; z-index: 30; max-width: calc(100% - 32px); }
   .empty { text-align: center; color: var(--muted); padding: 20px 8px; font-size: 14px; }
 </style>
@@ -262,6 +263,10 @@
   <section data-view="profile" class="hidden">
     <h1 id="profileTitle">Ваш профиль</h1>
     <div class="card hidden" id="targetsCard"></div>
+    <div class="card hidden" id="myFoodsCard">
+      <div class="row between"><h2 style="margin:0">Мои продукты</h2><button type="button" class="btn ghost sm" id="myFoodAdd">+ Добавить</button></div>
+      <div id="myFoods" style="margin-top:6px"></div>
+    </div>
     <form class="card" id="profileForm" novalidate>
       <h2>Параметры</h2>
       <div class="grid2">
@@ -330,8 +335,35 @@
         <button data-src="dishes">Готовые блюда</button>
       </div>
       <input id="searchInput" placeholder="Поиск…" autocomplete="off">
+      <button type="button" class="btn ghost sm" id="newFoodBtn" style="margin-top:8px">+ Свой продукт</button>
       <div id="results" style="margin-top:8px"></div>
     </div>
+    <form id="foodStep" class="hidden" novalidate>
+      <button type="button" class="btn ghost sm" id="foodBack">‹ Назад</button>
+      <h2 id="foodTitle" style="margin-top:12px">Новый продукт</h2>
+      <div class="small muted">Возьмите данные с упаковки. Продукт сохранится в вашем списке и будет находиться в поиске.</div>
+      <label for="fName">Название</label>
+      <input id="fName" maxlength="120" autocomplete="off" placeholder="например, Сырники домашние">
+      <label>Пищевая ценность указана</label>
+      <div class="seg" id="basisSeg">
+        <button type="button" data-b="100" class="on">на 100 г</button>
+        <button type="button" data-b="portion">на порцию</button>
+      </div>
+      <div id="portionField" class="hidden">
+        <label for="fPortion" style="margin-top:0">Вес порции, г</label>
+        <input id="fPortion" inputmode="decimal" autocomplete="off" placeholder="например, 250">
+      </div>
+      <div class="grid2">
+        <div><label for="fKcal">Калории, ккал</label><input id="fKcal" inputmode="decimal" autocomplete="off"></div>
+        <div><label for="fProtein">Белки, г</label><input id="fProtein" inputmode="decimal" autocomplete="off"></div>
+        <div><label for="fFat">Жиры, г</label><input id="fFat" inputmode="decimal" autocomplete="off"></div>
+        <div><label for="fCarbs">Углеводы, г</label><input id="fCarbs" inputmode="decimal" autocomplete="off"></div>
+      </div>
+      <div class="small muted" id="foodHint" style="margin-top:8px"></div>
+      <div class="error" id="foodError"></div>
+      <button class="btn block" id="foodSave">Сохранить и добавить в дневник</button>
+      <button type="button" class="btn ghost block hidden" id="foodDelete" style="margin-top:8px;color:var(--danger)">Удалить продукт</button>
+    </form>
     <div id="amountStep" class="hidden">
       <button class="btn ghost sm" id="backToSearch">‹ Назад</button>
       <h2 id="pickName" style="margin-top:12px"></h2>
@@ -357,7 +389,7 @@
   const MEALS = ["breakfast", "lunch", "dinner", "snack"];
   const MEAL_LABEL = { breakfast: "Завтрак", lunch: "Обед", dinner: "Ужин", snack: "Перекус" };
   const ALLERGEN_LABEL = { gluten: "глютен", dairy: "молочное", egg: "яйца", nuts: "орехи", peanuts: "арахис", soy: "соя", fish: "рыба", shellfish: "морепродукты", sesame: "кунжут" };
-  const FIELD_LABEL = { email: "Эл. почта", password: "Пароль", name: "Имя", birth_date: "Дата рождения", height_cm: "Рост", weight_kg: "Вес", body_fat_pct: "Процент жира", weekly_rate_kg: "Темп", grams: "Граммы", servings: "Порции", excluded_allergens: "Аллергены" };
+  const FIELD_LABEL = { email: "Эл. почта", password: "Пароль", name: "Имя", birth_date: "Дата рождения", height_cm: "Рост", weight_kg: "Вес", body_fat_pct: "Процент жира", weekly_rate_kg: "Темп", grams: "Граммы", servings: "Порции", excluded_allergens: "Аллергены", kcal: "Калории", protein: "Белки", fat: "Жиры", carbs: "Углеводы" };
   const ALLERGENS = ["gluten", "dairy", "egg", "nuts", "peanuts", "soy", "fish", "shellfish", "sesame"];
   const FORMULA = { mifflin_st_jeor: "Миффлин — Сан-Жеор", katch_mcardle: "Кэтч — МакАрдл", harris_benedict: "Харрис — Бенедикт (пересм.)" };
 
@@ -569,19 +601,27 @@
     return h < 11 ? "breakfast" : h < 16 ? "lunch" : h < 21 ? "dinner" : "snack";
   }
 
+  function showSheet() {
+    $("#sheet").classList.remove("hidden"); $("#sheetBackdrop").classList.remove("hidden");
+    if (inTelegram) tg.BackButton.show();
+  }
+  function showStep(id) {
+    for (const step of ["searchStep", "amountStep", "foodStep"]) $("#" + step).classList.toggle("hidden", step !== id);
+  }
   function openSheet(meal) {
     if (!state.user?.has_profile) return switchTab("profile");
     $("#mealSelect").value = meal || defaultMeal();
-    $("#sheet").classList.remove("hidden"); $("#sheetBackdrop").classList.remove("hidden");
-    showSearch(); $("#searchInput").value = ""; search();
-    if (inTelegram) tg.BackButton.show(); else $("#searchInput").focus();
+    showSheet(); showSearch(); $("#searchInput").value = ""; search();
+    if (!inTelegram) $("#searchInput").focus();
   }
   function closeSheet() {
     $("#sheet").classList.add("hidden"); $("#sheetBackdrop").classList.add("hidden");
     if (inTelegram) tg.BackButton.hide();
   }
   function onBack() {
-    if (!$("#amountStep").classList.contains("hidden")) showSearch(); else closeSheet();
+    const inForm = !$("#foodStep").classList.contains("hidden");
+    if (!$("#amountStep").classList.contains("hidden") || (inForm && state.foodForm?.mode === "add")) showSearch();
+    else closeSheet();
   }
   $("#sheetBackdrop").addEventListener("click", closeSheet);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
@@ -602,19 +642,27 @@
     const items = state.source === "foods" ? await api(`/api/foods?q=${q}`) : await api(`/api/dishes?q=${q}`);
     if (seq !== searchSeq) return;
     state.results = items;
+    $("#newFoodBtn").classList.toggle("hidden", state.source !== "foods");
+    const typed = $("#searchInput").value.trim();
+    const offer = state.source === "foods" && typed
+      ? `<br><button type="button" class="btn sm" data-new-food style="margin-top:10px">+ Добавить «${esc(typed)}» как свой продукт</button>` : "";
     $("#results").innerHTML = items.length ? items.map((it, i) => `<div class="result" data-i="${i}">
       <div class="grow"><div>${esc(it.name)}${it.is_custom ? ' <span class="tag">мой</span>' : ""}</div>
       <div class="small muted">${state.source === "foods" ? "на 100 г" : `${MEAL_LABEL[it.meal_type]} · порция ${fmt(it.grams)} г`} · Б ${fmt(it.protein)} · Ж ${fmt(it.fat)} · У ${fmt(it.carbs)}</div></div>
-      <b>${fmt(it.kcal)}</b></div>`).join("") : `<div class="empty">Ничего не найдено</div>`;
+      <b>${fmt(it.kcal)}</b></div>`).join("") : `<div class="empty">Ничего не найдено${offer}</div>`;
   }
 
   $("#results").addEventListener("click", (e) => {
+    if (e.target.closest("[data-new-food]")) return openFoodForm({ name: $("#searchInput").value.trim() });
     const r = e.target.closest("[data-i]"); if (!r) return;
-    const item = state.results[+r.dataset.i];
-    state.pick = { ...item, kind: state.source };
-    $("#searchStep").classList.add("hidden"); $("#amountStep").classList.remove("hidden");
+    pickItem(state.results[+r.dataset.i], state.source);
+  });
+
+  function pickItem(item, kind) {
+    state.pick = { ...item, kind };
+    showStep("amountStep");
     $("#pickName").textContent = item.name;
-    const isFood = state.source === "foods";
+    const isFood = kind === "foods";
     $("#pickInfo").textContent = isFood ? `${fmt(item.kcal)} ккал на 100 г` : `${item.description} ${item.allergens.length ? "· Содержит: " + item.allergens.map((a) => ALLERGEN_LABEL[a] || a).join(", ") : ""}`;
     $("#amountLabel").textContent = isFood ? "Граммы" : "Порции";
     $("#amount").step = isFood ? "1" : "0.25";
@@ -622,8 +670,8 @@
     if (!isFood) $("#mealSelect").value = item.meal_type;
     $("#addError").textContent = "";
     preview();
-  });
-  function showSearch() { $("#searchStep").classList.remove("hidden"); $("#amountStep").classList.add("hidden"); }
+  }
+  function showSearch() { showStep("searchStep"); }
   $("#backToSearch").addEventListener("click", showSearch);
   $("#amount").addEventListener("input", preview);
 
@@ -765,12 +813,13 @@
     $("#profileError").textContent = "";
     if (!state.user.has_profile) {
       fillProfile({ sex: "female", birth_date: "1995-01-01", height_cm: "", weight_kg: "", activity_level: "light", diet_type: "omnivore", meals_per_day: 4, weekly_rate_kg: 0.5, excluded_allergens: [], goal: "maintain" });
-      $("#targetsCard").classList.add("hidden");
+      $("#targetsCard").classList.add("hidden"); $("#myFoodsCard").classList.add("hidden");
       return;
     }
     $("#profileTitle").textContent = state.user.name;
     const [p, t] = await Promise.all([api("/api/profile"), api("/api/profile/targets")]);
     fillProfile(p); renderTargets(t);
+    loadMyFoods();
   }
 
   $("#profileForm").addEventListener("submit", async (e) => {
@@ -793,6 +842,111 @@
     } catch (err) { $("#profileError").textContent = err.message; }
     finally { btn.disabled = false; }
   });
+
+  // ---------------- own foods ----------------
+  // Foods missing from the catalogue, saved per user with nutrition per 100 g.
+  const NUTRIENT_LABEL = { kcal: "калории", protein: "белки", fat: "жиры", carbs: "углеводы" };
+  const decimal = (sel) => { const v = $(sel).value.trim().replace(",", "."); return v === "" ? NaN : Number(v); };
+  const r1 = (n) => Math.round(n * 10) / 10;
+  const asInput = (n) => String(n).replace(".", ",");
+  let foodBasis = "100";
+
+  function setBasis(b) {
+    foodBasis = b;
+    $$("#basisSeg button").forEach((x) => x.classList.toggle("on", x.dataset.b === b));
+    $("#portionField").classList.toggle("hidden", b !== "portion");
+    foodHint();
+  }
+  $("#basisSeg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setBasis(b.dataset.b); });
+
+  // mode "add": opened from the add sheet, saving continues to logging it; "manage": from the profile list.
+  function openFoodForm({ food = null, name = "", mode = "add" } = {}) {
+    state.foodForm = { id: food ? food.id : null, mode };
+    showStep("foodStep");
+    $("#foodTitle").textContent = food ? "Изменить продукт" : "Новый продукт";
+    $("#fName").value = food ? food.name : name;
+    for (const k of ["kcal", "protein", "fat", "carbs"]) $("#f" + k[0].toUpperCase() + k.slice(1)).value = food ? asInput(food[k]) : "";
+    $("#fPortion").value = "";
+    setBasis("100");
+    $("#foodSave").textContent = mode === "add" ? "Сохранить и добавить в дневник" : "Сохранить";
+    $("#foodDelete").classList.toggle("hidden", !food);
+    $("#foodError").textContent = "";
+    if (!inTelegram && !food) $(name ? "#fKcal" : "#fName").focus();
+  }
+  $("#newFoodBtn").addEventListener("click", () => openFoodForm({ name: $("#searchInput").value.trim() }));
+  $("#foodBack").addEventListener("click", onBack);
+
+  // Energy implied by the macros (Atwater factors 4/9/4) as a sanity check for typos.
+  function foodHint() {
+    const p = decimal("#fProtein"), f = decimal("#fFat"), c = decimal("#fCarbs"), k = decimal("#fKcal");
+    if (![p, f, c].every(Number.isFinite)) { $("#foodHint").textContent = ""; return; }
+    const est = 4 * p + 9 * f + 4 * c;
+    let text = `По БЖУ получается ≈ ${fmt(est)} ккал. `;
+    if (!Number.isFinite(k)) text += "Нажмите, чтобы подставить.";
+    else if (Math.abs(k - est) > Math.max(30, est * 0.2)) text += "Калории заметно расходятся с БЖУ — проверьте цифры.";
+    $("#foodHint").textContent = text;
+    $("#foodHint").style.cursor = Number.isFinite(k) ? "" : "pointer";
+  }
+  $("#foodHint").addEventListener("click", () => {
+    const p = decimal("#fProtein"), f = decimal("#fFat"), c = decimal("#fCarbs");
+    if (!Number.isFinite(decimal("#fKcal")) && [p, f, c].every(Number.isFinite)) { $("#fKcal").value = fmt(4 * p + 9 * f + 4 * c); foodHint(); }
+  });
+  for (const id of ["#fKcal", "#fProtein", "#fFat", "#fCarbs"]) $(id).addEventListener("input", foodHint);
+  $("#foodStep").addEventListener("input", () => { $("#foodError").textContent = ""; });
+
+  $("#foodStep").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const err = $("#foodError"); err.textContent = "";
+    const name = $("#fName").value.trim();
+    if (!name) { err.textContent = "Укажите название продукта"; return; }
+    const vals = { kcal: decimal("#fKcal"), protein: decimal("#fProtein"), fat: decimal("#fFat"), carbs: decimal("#fCarbs") };
+    const missing = Object.keys(vals).filter((k) => !Number.isFinite(vals[k]) || vals[k] < 0);
+    if (missing.length) { err.textContent = `Укажите ${missing.map((k) => NUTRIENT_LABEL[k]).join(", ")} (0, если нет)`; return; }
+    let factor = 1;
+    if (foodBasis === "portion") {
+      const grams = decimal("#fPortion");
+      if (!(grams > 0)) { err.textContent = "Укажите вес порции в граммах"; return; }
+      factor = 100 / grams;  // the API stores values per 100 g
+    }
+    const body = { name };
+    for (const k of Object.keys(vals)) body[k] = r1(vals[k] * factor);
+    const btn = $("#foodSave"); btn.disabled = true;
+    try {
+      const { id, mode } = state.foodForm;
+      const food = await api(id ? `/api/foods/${id}` : "/api/foods", { method: id ? "PUT" : "POST", body });
+      haptic("success"); toast("Продукт сохранён");
+      if (mode === "add") pickItem(food, "foods");
+      else { closeSheet(); loadMyFoods(); }
+    } catch (e2) { err.textContent = e2.message; }
+    finally { btn.disabled = false; }
+  });
+
+  function ask(message) {
+    if (inTelegram && tg.showConfirm) return new Promise((resolve) => tg.showConfirm(message, resolve));
+    return Promise.resolve(window.confirm(message));
+  }
+  $("#foodDelete").addEventListener("click", async () => {
+    if (!(await ask("Удалить продукт? Записи в дневнике с ним останутся."))) return;
+    try {
+      await api(`/api/foods/${state.foodForm.id}`, { method: "DELETE" });
+      closeSheet(); toast("Продукт удалён"); loadMyFoods();
+    } catch (e) { $("#foodError").textContent = e.message; }
+  });
+
+  async function loadMyFoods() {
+    const foods = await api("/api/foods?mine=true&limit=100");
+    state.myFoods = foods;
+    $("#myFoodsCard").classList.remove("hidden");
+    $("#myFoods").innerHTML = foods.length ? foods.map((f, i) => `<div class="result" data-my="${i}">
+      <div class="grow"><div>${esc(f.name)}</div><div class="small muted">на 100 г · Б ${num(f.protein)} · Ж ${num(f.fat)} · У ${num(f.carbs)}</div></div>
+      <b>${fmt(f.kcal)}</b></div>`).join("")
+      : `<div class="empty">Здесь появятся продукты, которых нет в базе. Добавьте свой — с калориями и БЖУ с упаковки.</div>`;
+  }
+  $("#myFoods").addEventListener("click", (e) => {
+    const r = e.target.closest("[data-my]");
+    if (r) { showSheet(); openFoodForm({ food: state.myFoods[+r.dataset.my], mode: "manage" }); }
+  });
+  $("#myFoodAdd").addEventListener("click", () => { showSheet(); openFoodForm({ mode: "manage" }); });
 
   boot();
 })();
