@@ -141,16 +141,16 @@ def calculate(p: BodyParams, meals_per_day: int = 4) -> EnergyPlan:
         if -adjustment > tdee * MAX_DEFICIT_SHARE:
             adjustment = -tdee * MAX_DEFICIT_SHARE
             warnings.append(
-                f"Requested weight-loss pace is too aggressive; deficit limited to "
-                f"{MAX_DEFICIT_SHARE:.0%} of maintenance ({-adjustment:.0f} kcal/day)."
+                f"Выбранный темп похудения слишком быстрый: дефицит ограничен "
+                f"{MAX_DEFICIT_SHARE:.0%} от нормы поддержания ({-adjustment:.0f} ккал/день)."
             )
     elif p.goal == Goal.gain:
         adjustment = p.weekly_rate_kg * KCAL_PER_KG / 7
         if adjustment > tdee * MAX_SURPLUS_SHARE:
             adjustment = tdee * MAX_SURPLUS_SHARE
             warnings.append(
-                f"Requested weight-gain pace is too fast for lean gains; surplus limited to "
-                f"{MAX_SURPLUS_SHARE:.0%} of maintenance ({adjustment:.0f} kcal/day)."
+                f"Выбранный темп набора слишком быстрый для набора без лишнего жира: профицит ограничен "
+                f"{MAX_SURPLUS_SHARE:.0%} от нормы поддержания ({adjustment:.0f} ккал/день)."
             )
 
     target = tdee + adjustment
@@ -158,11 +158,11 @@ def calculate(p: BodyParams, meals_per_day: int = 4) -> EnergyPlan:
     if target < floor:
         target = floor
         adjustment = target - tdee
-        warnings.append(f"Target raised to the safe minimum of {floor:.0f} kcal/day.")
+        warnings.append(f"Норма поднята до безопасного минимума — {floor:.0f} ккал/день.")
 
     body_mass_index = bmi(p.weight_kg, p.height_cm)
     if body_mass_index < 18.5 and p.goal == Goal.lose:
-        warnings.append("BMI is below 18.5; weight loss is not recommended. Consult a doctor.")
+        warnings.append("ИМТ ниже 18,5 — худеть не рекомендуется. Проконсультируйтесь с врачом.")
 
     ref_weight = protein_reference_weight(p.weight_kg, p.height_cm)
     protein_g = PROTEIN_PER_KG[p.goal] * ref_weight

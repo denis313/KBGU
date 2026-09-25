@@ -96,9 +96,12 @@ class GeneratedMenu:
         )
 
 
+MEAL_NAMES_RU = {MealType.breakfast: "завтрак", MealType.lunch: "обед", MealType.dinner: "ужин", MealType.snack: "перекус"}
+
+
 class NoDishesError(ValueError):
     def __init__(self, meal: MealType):
-        super().__init__(f"No dishes match your diet and allergen settings for {meal.value}.")
+        super().__init__(f"Нет блюд для приёма пищи «{MEAL_NAMES_RU[meal]}» с учётом вашего рациона и аллергенов.")
         self.meal = meal
 
 

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Calorie Tracker</title>
+<title>Трекер калорий</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root {
@@ -115,6 +115,7 @@
   .ring svg { transform: rotate(-90deg); }
   .ring .center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
   .ring .big { font-size: 26px; font-weight: 700; line-height: 1.1; }
+  .ring .center .small { max-width: 96px; margin: 0 auto; line-height: 1.2; }
   .macro { margin: 6px 0; }
   .bar { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin-top: 3px; }
   .bar > i { display: block; height: 100%; border-radius: 99px; }
@@ -131,6 +132,7 @@
   .dish .name { font-weight: 600; }
   .macros-inline { font-size: 12px; color: var(--muted); }
   .macros-inline b { font-weight: 600; }
+  .nw { white-space: nowrap; }
   .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin: 0 3px 1px 6px; }
 
   /* progress */
@@ -169,28 +171,28 @@
 <body>
 
 <!-- ============ AUTH ============ -->
-<div id="loading" class="auth hidden"><div class="muted">Loading…</div></div>
+<div id="loading" class="auth hidden"><div class="muted">Загрузка…</div></div>
 
 <section id="auth" class="auth hidden">
   <div class="card">
     <div class="brand"><div class="logo">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3c3 3 6 6.5 6 10a6 6 0 0 1-12 0c0-2 1-4 2.5-5.5C9 9.5 10 11 11 11c0-3 0-5 1-8z"/></svg>
-    </div>Calorie Tracker</div>
+    </div>Трекер калорий</div>
     <div class="seg" id="authSeg">
-      <button data-mode="login" class="on">Sign in</button>
-      <button data-mode="register">Create account</button>
+      <button data-mode="login" class="on">Вход</button>
+      <button data-mode="register">Регистрация</button>
     </div>
     <form id="authForm" novalidate>
       <div id="nameField" class="hidden">
-        <label for="authName">Name</label>
+        <label for="authName">Имя</label>
         <input id="authName" autocomplete="name">
       </div>
-      <label for="authEmail">Email</label>
+      <label for="authEmail">Эл. почта</label>
       <input id="authEmail" type="email" autocomplete="email" required>
-      <label for="authPassword">Password</label>
+      <label for="authPassword">Пароль (не менее 8 символов)</label>
       <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required>
       <div class="error" id="authError"></div>
-      <button class="btn block" id="authSubmit">Sign in</button>
+      <button class="btn block" id="authSubmit">Войти</button>
     </form>
   </div>
 </section>
@@ -201,9 +203,9 @@
   <!-- TODAY -->
   <section data-view="today">
     <div class="datebar">
-      <button class="icon-btn" id="prevDay" aria-label="Previous day">‹</button>
-      <div style="text-align:center"><strong id="dayTitle">Today</strong><div class="small muted" id="daySub"></div></div>
-      <button class="icon-btn" id="nextDay" aria-label="Next day">›</button>
+      <button class="icon-btn" id="prevDay" aria-label="Предыдущий день">‹</button>
+      <div style="text-align:center"><strong id="dayTitle">Сегодня</strong><div class="small muted" id="daySub"></div></div>
+      <button class="icon-btn" id="nextDay" aria-label="Следующий день">›</button>
     </div>
     <div class="card">
       <div class="summary">
@@ -212,13 +214,13 @@
             <circle cx="66" cy="66" r="56" fill="none" stroke="var(--surface-2)" stroke-width="12"/>
             <circle id="ringArc" cx="66" cy="66" r="56" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 400"/>
           </svg>
-          <div class="center"><div class="big" id="remaining">–</div><div class="small muted" id="remainingLabel">kcal left</div></div>
+          <div class="center"><div class="big" id="remaining">–</div><div class="small muted" id="remainingLabel">ккал осталось</div></div>
         </div>
         <div class="grow" id="macroBars"></div>
       </div>
       <div class="row between small muted" style="margin-top:12px">
-        <span>Eaten <b id="eaten" style="color:var(--text)">0</b></span>
-        <span>Target <b id="target" style="color:var(--text)">–</b></span>
+        <span>Съедено <b id="eaten" style="color:var(--text)">0</b></span>
+        <span>Норма <b id="target" style="color:var(--text)">–</b></span>
       </div>
     </div>
     <div id="meals"></div>
@@ -226,31 +228,31 @@
 
   <!-- MENU -->
   <section data-view="menu" class="hidden">
-    <h1>Menu for the day</h1>
+    <h1>Меню на день</h1>
     <div class="card">
       <div class="row between">
         <div><div class="small muted" id="menuDate"></div><div id="menuTotals" class="small"></div></div>
-        <button class="btn" id="genMenu">Generate</button>
+        <button class="btn" id="genMenu">Подобрать</button>
       </div>
       <div class="error" id="menuError"></div>
     </div>
-    <div class="card" id="menuCard"><div class="empty">Generate a menu picked from our dish catalogue and scaled to your calorie and macro targets.</div></div>
-    <button class="btn block hidden" id="logMenu">Add whole menu to diary</button>
+    <div class="card" id="menuCard"><div class="empty">Подберём меню из готовых блюд под вашу норму калорий и БЖУ.</div></div>
+    <button class="btn block hidden" id="logMenu">Добавить всё меню в дневник</button>
   </section>
 
   <!-- PROGRESS -->
   <section data-view="progress" class="hidden">
-    <h1>Progress</h1>
+    <h1>Прогресс</h1>
     <div class="card">
-      <h2>Last 7 days</h2>
+      <h2>Последние 7 дней</h2>
       <div class="bars" id="historyBars"></div>
       <div class="small muted" id="historyAvg" style="margin-top:8px"></div>
     </div>
     <div class="card">
-      <h2>Weight</h2>
+      <h2>Вес</h2>
       <form class="row" id="weightForm">
-        <input id="weightInput" type="number" step="0.1" min="30" max="350" placeholder="kg" class="grow" required>
-        <button class="btn">Log</button>
+        <input id="weightInput" type="number" step="0.1" min="30" max="350" placeholder="кг" class="grow" required>
+        <button class="btn">Записать</button>
       </form>
       <div class="weight-list" id="weightList" style="margin-top:10px"></div>
     </div>
@@ -258,90 +260,90 @@
 
   <!-- PROFILE -->
   <section data-view="profile" class="hidden">
-    <h1 id="profileTitle">Your profile</h1>
+    <h1 id="profileTitle">Ваш профиль</h1>
     <div class="card hidden" id="targetsCard"></div>
     <form class="card" id="profileForm" novalidate>
-      <h2>Body</h2>
+      <h2>Параметры</h2>
       <div class="grid2">
-        <div><label for="pSex">Sex</label><select id="pSex"><option value="female">Female</option><option value="male">Male</option></select></div>
-        <div><label for="pBirth">Birth date</label><input id="pBirth" type="date" required></div>
-        <div><label for="pHeight">Height, cm</label><input id="pHeight" type="number" min="100" max="250" step="0.5" required></div>
-        <div><label for="pWeight">Weight, kg</label><input id="pWeight" type="number" min="30" max="350" step="0.1" required></div>
+        <div><label for="pSex">Пол</label><select id="pSex"><option value="female">Женский</option><option value="male">Мужской</option></select></div>
+        <div><label for="pBirth">Дата рождения</label><input id="pBirth" type="date" required></div>
+        <div><label for="pHeight">Рост, см</label><input id="pHeight" type="number" min="100" max="250" step="0.5" required></div>
+        <div><label for="pWeight">Вес, кг</label><input id="pWeight" type="number" min="30" max="350" step="0.1" required></div>
       </div>
-      <label for="pFat">Body fat % (optional, enables Katch-McArdle)</label>
-      <input id="pFat" type="number" min="3" max="60" step="0.5" placeholder="e.g. 22">
-      <label for="pActivity">Activity</label>
+      <label for="pFat">Процент жира, % (необязательно, для формулы Кэтча — МакАрдла)</label>
+      <input id="pFat" type="number" min="3" max="60" step="0.5" placeholder="например, 22">
+      <label for="pActivity">Активность</label>
       <select id="pActivity">
-        <option value="sedentary">Sedentary: desk job, little exercise</option>
-        <option value="light">Light: exercise 1–3 days/week</option>
-        <option value="moderate">Moderate: exercise 3–5 days/week</option>
-        <option value="active">Active: hard exercise 6–7 days/week</option>
-        <option value="very_active">Very active: physical job + training</option>
+        <option value="sedentary">Минимальная: сидячая работа, почти без спорта</option>
+        <option value="light">Низкая: тренировки 1–3 раза в неделю</option>
+        <option value="moderate">Средняя: тренировки 3–5 раз в неделю</option>
+        <option value="active">Высокая: интенсивные тренировки 6–7 раз в неделю</option>
+        <option value="very_active">Очень высокая: физическая работа и тренировки</option>
       </select>
-      <h2 style="margin-top:18px">Goal</h2>
+      <h2 style="margin-top:18px">Цель</h2>
       <div class="seg" id="goalSeg">
-        <button type="button" data-v="lose">Lose</button>
-        <button type="button" data-v="maintain">Maintain</button>
-        <button type="button" data-v="gain">Gain</button>
+        <button type="button" data-v="lose">Похудеть</button>
+        <button type="button" data-v="maintain">Удержать</button>
+        <button type="button" data-v="gain">Набрать</button>
       </div>
       <div id="rateField">
-        <label for="pRate">Pace: <b id="rateLabel"></b> kg / week</label>
+        <label for="pRate">Темп: <b id="rateLabel"></b> кг в неделю</label>
         <input id="pRate" type="range" min="0.25" max="1" step="0.05">
       </div>
-      <h2 style="margin-top:18px">Food preferences</h2>
-      <label for="pDiet">Diet</label>
+      <h2 style="margin-top:18px">Питание</h2>
+      <label for="pDiet">Рацион</label>
       <select id="pDiet">
-        <option value="omnivore">Everything</option>
-        <option value="pescatarian">Pescatarian</option>
-        <option value="vegetarian">Vegetarian</option>
-        <option value="vegan">Vegan</option>
+        <option value="omnivore">Ем всё</option>
+        <option value="pescatarian">Пескетарианство (без мяса, с рыбой)</option>
+        <option value="vegetarian">Вегетарианство</option>
+        <option value="vegan">Веганство</option>
       </select>
-      <label>Exclude allergens</label>
+      <label>Исключить аллергены</label>
       <div class="chips" id="allergenChips"></div>
-      <label for="pMeals">Meals per day</label>
-      <select id="pMeals"><option value="4">4: breakfast, lunch, dinner, snack</option><option value="3">3: breakfast, lunch, dinner</option></select>
+      <label for="pMeals">Приёмов пищи в день</label>
+      <select id="pMeals"><option value="4">4: завтрак, обед, ужин, перекус</option><option value="3">3: завтрак, обед, ужин</option></select>
       <div class="error" id="profileError"></div>
-      <button class="btn block" id="saveProfile">Save</button>
+      <button class="btn block" id="saveProfile">Сохранить</button>
     </form>
-    <button class="btn ghost block" id="logout">Sign out</button>
+    <button class="btn ghost block" id="logout">Выйти</button>
   </section>
 </main>
 
 <nav class="bnb hidden" id="bnb">
   <div class="inner">
-    <button data-tab="today" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/></svg>Today</button>
-    <button data-tab="menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v8a2 2 0 0 0 2 2v8M5 3v5M9 3v5M17 21V3c-2 1.5-3 4-3 7v3h3"/></svg>Menu</button>
-    <button data-tab="add" aria-label="Add food"><span class="fab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></button>
-    <button data-tab="progress"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Progress</button>
-    <button data-tab="profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profile</button>
+    <button data-tab="today" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/></svg>Сегодня</button>
+    <button data-tab="menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v8a2 2 0 0 0 2 2v8M5 3v5M9 3v5M17 21V3c-2 1.5-3 4-3 7v3h3"/></svg>Меню</button>
+    <button data-tab="add" aria-label="Добавить еду"><span class="fab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></button>
+    <button data-tab="progress"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Прогресс</button>
+    <button data-tab="profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Профиль</button>
   </div>
 </nav>
 
 <!-- ADD SHEET -->
 <div class="sheet-backdrop hidden" id="sheetBackdrop"></div>
-<div class="sheet hidden" id="sheet" role="dialog" aria-label="Add food">
+<div class="sheet hidden" id="sheet" role="dialog" aria-label="Добавить еду">
   <div class="grab"></div>
   <div class="body">
     <div id="searchStep">
       <div class="seg" id="sourceSeg">
-        <button data-src="foods" class="on">Foods</button>
-        <button data-src="dishes">Ready dishes</button>
+        <button data-src="foods" class="on">Продукты</button>
+        <button data-src="dishes">Готовые блюда</button>
       </div>
-      <input id="searchInput" placeholder="Search…" autocomplete="off">
+      <input id="searchInput" placeholder="Поиск…" autocomplete="off">
       <div id="results" style="margin-top:8px"></div>
     </div>
     <div id="amountStep" class="hidden">
-      <button class="btn ghost sm" id="backToSearch">‹ Back</button>
+      <button class="btn ghost sm" id="backToSearch">‹ Назад</button>
       <h2 id="pickName" style="margin-top:12px"></h2>
       <div class="small muted" id="pickInfo"></div>
       <div class="grid2">
-        <div><label for="amount" id="amountLabel">Grams</label><input id="amount" type="number" min="1" step="1"></div>
-        <div><label for="mealSelect">Meal</label>
-          <select id="mealSelect"><option value="breakfast">Breakfast</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="snack">Snack</option></select></div>
+        <div><label for="amount" id="amountLabel">Граммы</label><input id="amount" type="number" min="1" step="1"></div>
+        <div><label for="mealSelect">Приём пищи</label>
+          <select id="mealSelect"><option value="breakfast">Завтрак</option><option value="lunch">Обед</option><option value="dinner">Ужин</option><option value="snack">Перекус</option></select></div>
       </div>
       <div class="card" style="margin-top:12px;box-shadow:none" id="amountPreview"></div>
       <div class="error" id="addError"></div>
-      <button class="btn block" id="confirmAdd">Add to diary</button>
+      <button class="btn block" id="confirmAdd">Добавить в дневник</button>
     </div>
   </div>
 </div>
@@ -353,9 +355,11 @@
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => [...document.querySelectorAll(s)];
   const MEALS = ["breakfast", "lunch", "dinner", "snack"];
-  const MEAL_LABEL = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack" };
+  const MEAL_LABEL = { breakfast: "Завтрак", lunch: "Обед", dinner: "Ужин", snack: "Перекус" };
+  const ALLERGEN_LABEL = { gluten: "глютен", dairy: "молочное", egg: "яйца", nuts: "орехи", peanuts: "арахис", soy: "соя", fish: "рыба", shellfish: "морепродукты", sesame: "кунжут" };
+  const FIELD_LABEL = { email: "Эл. почта", password: "Пароль", name: "Имя", birth_date: "Дата рождения", height_cm: "Рост", weight_kg: "Вес", body_fat_pct: "Процент жира", weekly_rate_kg: "Темп", grams: "Граммы", servings: "Порции", excluded_allergens: "Аллергены" };
   const ALLERGENS = ["gluten", "dairy", "egg", "nuts", "peanuts", "soy", "fish", "shellfish", "sesame"];
-  const FORMULA = { mifflin_st_jeor: "Mifflin-St Jeor", katch_mcardle: "Katch-McArdle", harris_benedict: "Harris-Benedict (rev.)" };
+  const FORMULA = { mifflin_st_jeor: "Миффлин — Сан-Жеор", katch_mcardle: "Кэтч — МакАрдл", harris_benedict: "Харрис — Бенедикт (пересм.)" };
 
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -371,7 +375,16 @@
   const state = { token: inTelegram ? null : store.get("ct_token"), user: null, day: new Date(), tab: "today", menu: null, source: "foods", pick: null, goal: "maintain", allergens: new Set() };
 
   const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-  const fmt = (n) => Math.round(n).toLocaleString();
+  const fmt = (n) => Math.round(n).toLocaleString("ru-RU");
+  const num = (n) => n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  const date = (d, opts) => d.toLocaleDateString("ru-RU", opts);
+  // Russian plural forms: [1 порция, 2 порции, 5 порций]; fractions take the second form.
+  function plural(n, [one, few, many]) {
+    if (!Number.isInteger(n)) return few;
+    const m10 = n % 10, m100 = n % 100;
+    return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many;
+  }
+  const servings = (n) => `${num(n)} ${plural(n, ["порция", "порции", "порций"])}`;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   async function api(path, { method = "GET", body } = {}) {
@@ -381,15 +394,23 @@
     if (res.status === 204) return null;
     const data = await res.json().catch(() => null);
     if (res.status === 401 && state.token) {
-      if (inTelegram) { state.token = null; telegramLogin(); throw new Error("Session expired, signing in again…"); }
-      logout(); throw new Error("Session expired, please sign in again.");
+      if (inTelegram) { state.token = null; telegramLogin(); throw new Error("Сессия истекла, входим заново…"); }
+      logout(); throw new Error("Сессия истекла, войдите снова.");
     }
     if (!res.ok) {
       const d = data && data.detail;
-      const msg = Array.isArray(d) ? d.map((e) => `${e.loc?.slice(-1)[0] ?? ""}: ${e.msg}`).join("; ") : d || `Request failed (${res.status})`;
+      const msg = Array.isArray(d) ? d.map(validationMessage).join("; ") : d || `Ошибка запроса (${res.status})`;
       const err = new Error(msg); err.status = res.status; throw err;
     }
     return data;
+  }
+
+  // FastAPI validation errors come in English; show which field is wrong in Russian.
+  function validationMessage(e) {
+    const field = FIELD_LABEL[e.loc?.slice(-1)[0]];
+    // Our own validators already speak Russian; library messages (e.g. email format) do not.
+    if (e.type === "value_error" && /[а-яё]/i.test(e.msg)) return e.msg.replace(/^Value error,\s*/, "");
+    return field ? `Проверьте поле «${field}»` : "Проверьте введённые данные";
   }
 
   let toastTimer;
@@ -405,7 +426,7 @@
     authMode = b.dataset.mode;
     $$("#authSeg button").forEach((x) => x.classList.toggle("on", x === b));
     $("#nameField").classList.toggle("hidden", authMode !== "register");
-    $("#authSubmit").textContent = authMode === "register" ? "Create account" : "Sign in";
+    $("#authSubmit").textContent = authMode === "register" ? "Зарегистрироваться" : "Войти";
     $("#authPassword").autocomplete = authMode === "register" ? "new-password" : "current-password";
     $("#authError").textContent = "";
   });
@@ -454,7 +475,7 @@
       state.token = res.access_token; state.user = res.user;
       $("#loading").classList.add("hidden"); enterApp();
     } catch (err) {
-      logout(); $("#authError").textContent = `Telegram sign-in failed: ${err.message}`;
+      logout(); $("#authError").textContent = `Не удалось войти через Telegram: ${err.message}`;
     }
   }
 
@@ -468,7 +489,7 @@
 
   function enterApp() {
     $("#auth").classList.add("hidden"); $("#app").classList.remove("hidden"); $("#bnb").classList.remove("hidden");
-    if (!state.user.has_profile) { switchTab("profile"); $("#profileTitle").textContent = `Welcome, ${state.user.name}! Tell us about you`; }
+    if (!state.user.has_profile) { switchTab("profile"); $("#profileTitle").textContent = `${state.user.name}, добро пожаловать! Расскажите о себе`; }
     else switchTab("today");
   }
 
@@ -480,7 +501,7 @@
   });
 
   function switchTab(tab) {
-    if (!state.user?.has_profile && tab !== "profile") { toast("Complete your profile first"); tab = "profile"; }
+    if (!state.user?.has_profile && tab !== "profile") { toast("Сначала заполните профиль"); tab = "profile"; }
     state.tab = tab;
     $$("[data-view]").forEach((v) => v.classList.toggle("hidden", v.dataset.view !== tab));
     $$("#bnb [data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
@@ -494,43 +515,44 @@
 
   function dayTitle(d) {
     const diff = Math.round((new Date(iso(d)) - new Date(iso(new Date()))) / 86400000);
-    return diff === 0 ? "Today" : diff === -1 ? "Yesterday" : diff === 1 ? "Tomorrow" : d.toLocaleDateString(undefined, { weekday: "long" });
+    const name = diff === 0 ? "Сегодня" : diff === -1 ? "Вчера" : diff === 1 ? "Завтра" : date(d, { weekday: "long" });
+    return name[0].toUpperCase() + name.slice(1);
   }
 
   function macroBar(label, color, value, target) {
     const pct = target ? Math.min(100, (value / target) * 100) : 0;
-    return `<div class="macro"><div class="row between small"><span>${label}</span><span class="muted">${fmt(value)} / ${target ? fmt(target) : "–"} g</span></div>
+    return `<div class="macro"><div class="row between small"><span>${label}</span><span class="muted">${fmt(value)} / ${target ? fmt(target) : "–"} г</span></div>
       <div class="bar"><i style="width:${pct}%;background:${color}"></i></div></div>`;
   }
 
   async function loadToday() {
     $("#dayTitle").textContent = dayTitle(state.day);
-    $("#daySub").textContent = state.day.toLocaleDateString(undefined, { day: "numeric", month: "long" });
+    $("#daySub").textContent = date(state.day, { day: "numeric", month: "long" });
     const data = await api(`/api/diary?date=${iso(state.day)}`);
     const t = data.targets, tot = data.totals;
     $("#eaten").textContent = fmt(tot.kcal);
     $("#target").textContent = t ? fmt(t.kcal) : "–";
     const over = t && tot.kcal > t.kcal;
     $("#remaining").textContent = t ? fmt(Math.abs(t.kcal - tot.kcal)) : fmt(tot.kcal);
-    $("#remainingLabel").textContent = over ? "kcal over" : "kcal left";
+    $("#remainingLabel").textContent = over ? "ккал сверх нормы" : "ккал осталось";
     const circ = 2 * Math.PI * 56, frac = t ? Math.min(1, tot.kcal / t.kcal) : 0;
     const arc = $("#ringArc");
     arc.setAttribute("stroke-dasharray", `${frac * circ} ${circ}`);
     arc.setAttribute("stroke", over ? "var(--fat)" : "var(--accent)");
     arc.style.visibility = frac > 0 ? "visible" : "hidden";  // a round cap would draw a dot at 0
     $("#macroBars").innerHTML =
-      macroBar("Protein", "var(--protein)", tot.protein, t?.protein) +
-      macroBar("Fat", "var(--fat)", tot.fat, t?.fat) +
-      macroBar("Carbs", "var(--carbs)", tot.carbs, t?.carbs);
+      macroBar("Белки", "var(--protein)", tot.protein, t?.protein) +
+      macroBar("Жиры", "var(--fat)", tot.fat, t?.fat) +
+      macroBar("Углеводы", "var(--carbs)", tot.carbs, t?.carbs);
 
     $("#meals").innerHTML = MEALS.map((m) => {
       const entries = data.entries.filter((e) => e.meal_type === m);
       const kcal = entries.reduce((s, e) => s + e.kcal, 0);
-      return `<div class="card"><div class="meal-head"><h2 style="margin:0">${MEAL_LABEL[m]} <span class="muted small">${fmt(kcal)} kcal</span></h2>
-        <button class="btn ghost sm" data-add-meal="${m}">+ Add</button></div>
+      return `<div class="card"><div class="meal-head"><h2 style="margin:0">${MEAL_LABEL[m]} <span class="muted small">${fmt(kcal)} ккал</span></h2>
+        <button class="btn ghost sm" data-add-meal="${m}">+ Добавить</button></div>
         <div style="margin-top:6px">${entries.map((e) => `<div class="entry"><div class="grow"><div>${esc(e.name)}</div>
-          <div class="small muted">${e.servings ? `${e.servings} serving${e.servings === 1 ? "" : "s"} · ` : ""}${fmt(e.grams)} g · P ${fmt(e.protein)} · F ${fmt(e.fat)} · C ${fmt(e.carbs)}</div></div>
-          <span class="kcal">${fmt(e.kcal)}</span><button data-del="${e.id}" aria-label="Remove">×</button></div>`).join("")}</div></div>`;
+          <div class="small muted">${e.servings ? `${servings(e.servings)} · ` : ""}${fmt(e.grams)} г · Б ${fmt(e.protein)} · Ж ${fmt(e.fat)} · У ${fmt(e.carbs)}</div></div>
+          <span class="kcal">${fmt(e.kcal)}</span><button data-del="${e.id}" aria-label="Удалить">×</button></div>`).join("")}</div></div>`;
     }).join("");
   }
 
@@ -581,9 +603,9 @@
     if (seq !== searchSeq) return;
     state.results = items;
     $("#results").innerHTML = items.length ? items.map((it, i) => `<div class="result" data-i="${i}">
-      <div class="grow"><div>${esc(it.name)}${it.is_custom ? ' <span class="tag">mine</span>' : ""}</div>
-      <div class="small muted">${state.source === "foods" ? "per 100 g" : `${MEAL_LABEL[it.meal_type]} · ${fmt(it.grams)} g serving`} · P ${fmt(it.protein)} · F ${fmt(it.fat)} · C ${fmt(it.carbs)}</div></div>
-      <b>${fmt(it.kcal)}</b></div>`).join("") : `<div class="empty">Nothing found</div>`;
+      <div class="grow"><div>${esc(it.name)}${it.is_custom ? ' <span class="tag">мой</span>' : ""}</div>
+      <div class="small muted">${state.source === "foods" ? "на 100 г" : `${MEAL_LABEL[it.meal_type]} · порция ${fmt(it.grams)} г`} · Б ${fmt(it.protein)} · Ж ${fmt(it.fat)} · У ${fmt(it.carbs)}</div></div>
+      <b>${fmt(it.kcal)}</b></div>`).join("") : `<div class="empty">Ничего не найдено</div>`;
   }
 
   $("#results").addEventListener("click", (e) => {
@@ -593,8 +615,8 @@
     $("#searchStep").classList.add("hidden"); $("#amountStep").classList.remove("hidden");
     $("#pickName").textContent = item.name;
     const isFood = state.source === "foods";
-    $("#pickInfo").textContent = isFood ? `${fmt(item.kcal)} kcal per 100 g` : `${item.description} ${item.allergens.length ? "· Contains: " + item.allergens.join(", ") : ""}`;
-    $("#amountLabel").textContent = isFood ? "Grams" : "Servings";
+    $("#pickInfo").textContent = isFood ? `${fmt(item.kcal)} ккал на 100 г` : `${item.description} ${item.allergens.length ? "· Содержит: " + item.allergens.map((a) => ALLERGEN_LABEL[a] || a).join(", ") : ""}`;
+    $("#amountLabel").textContent = isFood ? "Граммы" : "Порции";
     $("#amount").step = isFood ? "1" : "0.25";
     $("#amount").value = isFood ? 100 : 1;
     if (!isFood) $("#mealSelect").value = item.meal_type;
@@ -608,10 +630,10 @@
   function preview() {
     const p = state.pick, a = parseFloat($("#amount").value) || 0;
     const f = p.kind === "foods" ? a / 100 : a;
-    $("#amountPreview").innerHTML = `<div class="row between"><b>${fmt(p.kcal * f)} kcal</b>
-      <span class="macros-inline"><span class="dot" style="background:var(--protein)"></span>P <b>${fmt(p.protein * f)}</b>
-      <span class="dot" style="background:var(--fat)"></span>F <b>${fmt(p.fat * f)}</b>
-      <span class="dot" style="background:var(--carbs)"></span>C <b>${fmt(p.carbs * f)}</b></span></div>`;
+    $("#amountPreview").innerHTML = `<div class="row between"><b>${fmt(p.kcal * f)} ккал</b>
+      <span class="macros-inline"><span class="dot" style="background:var(--protein)"></span>Б <b>${fmt(p.protein * f)}</b>
+      <span class="dot" style="background:var(--fat)"></span>Ж <b>${fmt(p.fat * f)}</b>
+      <span class="dot" style="background:var(--carbs)"></span>У <b>${fmt(p.carbs * f)}</b></span></div>`;
   }
 
   $("#confirmAdd").addEventListener("click", async () => {
@@ -621,7 +643,7 @@
     else Object.assign(body, { dish_id: p.id, servings: a });
     try {
       await api("/api/diary", { method: "POST", body });
-      closeSheet(); haptic("success"); toast(`Added ${p.name}`);
+      closeSheet(); haptic("success"); toast(`Добавлено: ${p.name}`);
       if (state.tab !== "today") switchTab("today"); else loadToday();
     } catch (err) { $("#addError").textContent = err.message; }
   });
@@ -629,24 +651,24 @@
   // ---------------- menu ----------------
   function renderMenu(plan) {
     state.menu = plan;
-    $("#menuDate").textContent = new Date(plan ? plan.plan_date + "T00:00" : iso(state.day)).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+    $("#menuDate").textContent = date(new Date((plan ? plan.plan_date : iso(state.day)) + "T00:00"), { weekday: "long", day: "numeric", month: "long" });
     $("#logMenu").classList.toggle("hidden", !plan);
     if (!plan) {
       $("#menuTotals").textContent = "";
-      $("#menuCard").innerHTML = `<div class="empty">Generate a menu picked from our dish catalogue and scaled to your calorie and macro targets.</div>`;
+      $("#menuCard").innerHTML = `<div class="empty">Подберём меню из готовых блюд под вашу норму калорий и БЖУ.</div>`;
       return;
     }
     const t = plan.totals, g = plan.targets;
-    $("#menuTotals").innerHTML = `<div style="font-size:18px"><b>${fmt(t.kcal)}</b> <span class="small muted">/ ${fmt(g.kcal)} kcal</span></div>
-      <div class="macros-inline"><span class="dot" style="background:var(--protein);margin-left:0"></span>P ${fmt(t.protein)}/${fmt(g.protein)}<span class="dot" style="background:var(--fat)"></span>F ${fmt(t.fat)}/${fmt(g.fat)}<span class="dot" style="background:var(--carbs)"></span>C ${fmt(t.carbs)}/${fmt(g.carbs)}</div>`;
+    $("#menuTotals").innerHTML = `<div style="font-size:18px"><b>${fmt(t.kcal)}</b> <span class="small muted">/ ${fmt(g.kcal)} ккал</span></div>
+      <div class="macros-inline"><span class="nw"><span class="dot" style="background:var(--protein);margin-left:0"></span>Б ${fmt(t.protein)}/${fmt(g.protein)}</span> <span class="nw"><span class="dot" style="background:var(--fat)"></span>Ж ${fmt(t.fat)}/${fmt(g.fat)}</span> <span class="nw"><span class="dot" style="background:var(--carbs)"></span>У ${fmt(t.carbs)}/${fmt(g.carbs)}</span></div>`;
     $("#menuCard").innerHTML = plan.items.map((i) => `<div class="dish"><div class="grow">
       <div class="meal">${MEAL_LABEL[i.meal_type]}</div>
       <div class="name">${esc(i.name)}</div>
-      <div class="small muted">${i.servings} serving${i.servings === 1 ? "" : "s"} · ${fmt(i.grams)} g · <b style="color:var(--text)">${fmt(i.kcal)} kcal</b></div>
-      <div class="macros-inline"><span class="dot" style="background:var(--protein)"></span>P ${fmt(i.protein)}<span class="dot" style="background:var(--fat)"></span>F ${fmt(i.fat)}<span class="dot" style="background:var(--carbs)"></span>C ${fmt(i.carbs)}</div>
+      <div class="small muted">${servings(i.servings)} · ${fmt(i.grams)} г · <b class="nw" style="color:var(--text)">${fmt(i.kcal)} ккал</b></div>
+      <div class="macros-inline"><span class="dot" style="background:var(--protein)"></span>Б ${fmt(i.protein)}<span class="dot" style="background:var(--fat)"></span>Ж ${fmt(i.fat)}<span class="dot" style="background:var(--carbs)"></span>У ${fmt(i.carbs)}</div>
       </div><div style="display:flex;flex-direction:column;gap:6px">
-        <button class="btn ghost sm" data-swap="${i.id}">Swap</button>
-        <button class="btn ghost sm" data-log="${i.id}">+ Diary</button>
+        <button class="btn ghost sm" data-swap="${i.id}">Заменить</button>
+        <button class="btn ghost sm" data-log="${i.id}">+ В дневник</button>
       </div></div>`).join("");
   }
 
@@ -658,7 +680,7 @@
 
   $("#genMenu").addEventListener("click", async () => {
     const b = $("#genMenu"); b.disabled = true; $("#menuError").textContent = "";
-    try { renderMenu(await api("/api/menu/generate", { method: "POST", body: { plan_date: iso(state.day) } })); b.textContent = "Regenerate"; }
+    try { renderMenu(await api("/api/menu/generate", { method: "POST", body: { plan_date: iso(state.day) } })); b.textContent = "Обновить"; }
     catch (err) { $("#menuError").textContent = err.message; }
     finally { b.disabled = false; }
   });
@@ -667,41 +689,41 @@
     const swap = e.target.closest("[data-swap]"), log = e.target.closest("[data-log]");
     try {
       if (swap) renderMenu(await api(`/api/menu/${state.menu.id}/items/${swap.dataset.swap}/swap?seed=${Math.floor(Math.random() * 1e9) + 1}`, { method: "POST" }));
-      if (log) { await api(`/api/menu/${state.menu.id}/log`, { method: "POST", body: { item_ids: [+log.dataset.log] } }); toast("Added to diary"); }
+      if (log) { await api(`/api/menu/${state.menu.id}/log`, { method: "POST", body: { item_ids: [+log.dataset.log] } }); toast("Добавлено в дневник"); }
     } catch (err) { $("#menuError").textContent = err.message; }
   });
 
   $("#logMenu").addEventListener("click", async () => {
     await api(`/api/menu/${state.menu.id}/log`, { method: "POST", body: {} });
-    toast("Menu added to diary"); switchTab("today");
+    toast("Меню добавлено в дневник"); switchTab("today");
   });
 
   // ---------------- progress ----------------
   async function loadProgress() {
     const [hist, weights, targets] = await Promise.all([api("/api/diary/history?days=7"), api("/api/weights?days=90"), api("/api/profile/targets")]);
     const max = Math.max(targets.target_kcal * 1.2, ...hist.map((h) => h.kcal));
-    $("#historyBars").innerHTML = `<div class="target-line" style="bottom:${(targets.target_kcal / max) * 100 * 0.82 + 18}px" title="Target"></div>` +
-      hist.map((h) => `<div class="col"><i class="${h.kcal > targets.target_kcal * 1.05 ? "over" : ""}" style="height:${(h.kcal / max) * 82}%" title="${fmt(h.kcal)} kcal"></i>
-        <span>${new Date(h.date + "T00:00").toLocaleDateString(undefined, { weekday: "narrow" })}</span></div>`).join("");
+    $("#historyBars").innerHTML = `<div class="target-line" style="bottom:${(targets.target_kcal / max) * 100 * 0.82 + 18}px" title="Норма"></div>` +
+      hist.map((h) => `<div class="col"><i class="${h.kcal > targets.target_kcal * 1.05 ? "over" : ""}" style="height:${(h.kcal / max) * 82}%" title="${fmt(h.kcal)} ккал"></i>
+        <span>${date(new Date(h.date + "T00:00"), { weekday: "short" })}</span></div>`).join("");
     const logged = hist.filter((h) => h.kcal > 0);
-    $("#historyAvg").textContent = logged.length ? `Average ${fmt(logged.reduce((s, h) => s + h.kcal, 0) / logged.length)} kcal on ${logged.length} logged day(s) · target ${fmt(targets.target_kcal)}` : "No food logged this week yet.";
+    $("#historyAvg").textContent = logged.length ? `В среднем ${fmt(logged.reduce((s, h) => s + h.kcal, 0) / logged.length)} ккал за ${logged.length} ${plural(logged.length, ["день", "дня", "дней"])} с записями · норма ${fmt(targets.target_kcal)}` : "На этой неделе записей о питании пока нет.";
     $("#weightList").innerHTML = weights.length ? weights.slice().reverse().slice(0, 10).map((w, i, arr) => {
       const prev = arr[i + 1]; const d = prev ? w.weight_kg - prev.weight_kg : 0;
-      return `<div><span>${new Date(w.logged_on + "T00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
-        <span><b>${w.weight_kg.toFixed(1)} kg</b> ${prev ? `<span class="small muted">${d > 0 ? "+" : ""}${d.toFixed(1)}</span>` : ""}</span></div>`;
-    }).join("") : `<div class="empty">No weigh-ins yet</div>`;
+      return `<div><span>${date(new Date(w.logged_on + "T00:00"), { day: "numeric", month: "short" })}</span>
+        <span><b>${num(+w.weight_kg.toFixed(1))} кг</b> ${prev ? `<span class="small muted">${d > 0 ? "+" : ""}${num(+d.toFixed(1))}</span>` : ""}</span></div>`;
+    }).join("") : `<div class="empty">Взвешиваний пока нет</div>`;
   }
 
   $("#weightForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     try {
       await api("/api/weights", { method: "POST", body: { logged_on: iso(new Date()), weight_kg: parseFloat($("#weightInput").value) } });
-      $("#weightInput").value = ""; toast("Weight saved, targets updated"); loadProgress();
+      $("#weightInput").value = ""; toast("Вес сохранён, норма пересчитана"); loadProgress();
     } catch (err) { toast(err.message); }
   });
 
   // ---------------- profile ----------------
-  $("#allergenChips").innerHTML = ALLERGENS.map((a) => `<button type="button" class="chip" data-a="${a}">${a}</button>`).join("");
+  $("#allergenChips").innerHTML = ALLERGENS.map((a) => `<button type="button" class="chip" data-a="${a}">${ALLERGEN_LABEL[a]}</button>`).join("");
   $("#allergenChips").addEventListener("click", (e) => {
     const c = e.target.closest("[data-a]"); if (!c) return;
     state.allergens.has(c.dataset.a) ? state.allergens.delete(c.dataset.a) : state.allergens.add(c.dataset.a);
@@ -713,7 +735,7 @@
     $$("#goalSeg button").forEach((b) => b.classList.toggle("on", b.dataset.v === g));
     $("#rateField").classList.toggle("hidden", g === "maintain");
   }
-  $("#pRate").addEventListener("input", () => { $("#rateLabel").textContent = (+$("#pRate").value).toFixed(2); });
+  $("#pRate").addEventListener("input", () => { $("#rateLabel").textContent = num(+$("#pRate").value); });
 
   function fillProfile(p) {
     $("#pSex").value = p.sex; $("#pBirth").value = p.birth_date; $("#pHeight").value = p.height_cm; $("#pWeight").value = p.weight_kg;
@@ -721,20 +743,20 @@
     $("#pMeals").value = String(p.meals_per_day); $("#pRate").value = p.weekly_rate_kg || 0.5;
     state.allergens = new Set(p.excluded_allergens);
     $$("#allergenChips .chip").forEach((c) => c.classList.toggle("on", state.allergens.has(c.dataset.a)));
-    setGoal(p.goal); $("#rateLabel").textContent = (+$("#pRate").value).toFixed(2);
+    setGoal(p.goal); $("#rateLabel").textContent = num(+$("#pRate").value);
   }
 
   function renderTargets(t) {
-    const est = Object.entries(t.bmr_estimates).map(([k, v]) => `<div class="row between small"><span class="${k === t.bmr_formula ? "" : "muted"}">${FORMULA[k]}${k === t.bmr_formula ? " ✓" : ""}</span><span>${fmt(v)} kcal</span></div>`).join("");
-    $("#targetsCard").innerHTML = `<div class="row between"><div><div class="small muted">Daily target</div><div style="font-size:28px;font-weight:700">${fmt(t.target_kcal)} <span class="small muted">kcal</span></div></div>
-      <div style="text-align:right" class="small"><div>BMI <b>${t.bmi}</b></div><div class="muted">TDEE ${fmt(t.tdee)} · ${t.daily_adjustment > 0 ? "+" : ""}${fmt(t.daily_adjustment)}</div></div></div>
-      <div class="grid2 small" style="margin-top:10px;grid-template-columns:repeat(3,1fr)">
-        <div><span class="dot" style="background:var(--protein);margin-left:0"></span>Protein <b>${fmt(t.protein_g)} g</b></div>
-        <div><span class="dot" style="background:var(--fat);margin-left:0"></span>Fat <b>${fmt(t.fat_g)} g</b></div>
-        <div><span class="dot" style="background:var(--carbs);margin-left:0"></span>Carbs <b>${fmt(t.carbs_g)} g</b></div></div>
-      <details style="margin-top:10px"><summary class="small muted" style="cursor:pointer">How it's calculated</summary>
+    const est = Object.entries(t.bmr_estimates).map(([k, v]) => `<div class="row between small"><span class="${k === t.bmr_formula ? "" : "muted"}">${FORMULA[k]}${k === t.bmr_formula ? " ✓" : ""}</span><span>${fmt(v)} ккал</span></div>`).join("");
+    $("#targetsCard").innerHTML = `<div class="row between"><div><div class="small muted">Норма в день</div><div style="font-size:28px;font-weight:700">${fmt(t.target_kcal)} <span class="small muted">ккал</span></div></div>
+      <div style="text-align:right" class="small"><div>ИМТ <b>${num(t.bmi)}</b></div><div class="muted">Расход ${fmt(t.tdee)} · ${t.daily_adjustment > 0 ? "+" : ""}${fmt(t.daily_adjustment)}</div></div></div>
+      <div class="grid2 small" style="margin-top:10px;grid-template-columns:repeat(3,auto);justify-content:space-between;white-space:nowrap">
+        <div><span class="dot" style="background:var(--protein);margin-left:0"></span>Белки <b>${fmt(t.protein_g)} г</b></div>
+        <div><span class="dot" style="background:var(--fat);margin-left:0"></span>Жиры <b>${fmt(t.fat_g)} г</b></div>
+        <div><span class="dot" style="background:var(--carbs);margin-left:0"></span>Углеводы <b>${fmt(t.carbs_g)} г</b></div></div>
+      <details style="margin-top:10px"><summary class="small muted" style="cursor:pointer">Как рассчитано</summary>
         <div style="margin-top:8px">${est}
-        <div class="small muted" style="margin-top:6px">BMR ${fmt(t.bmr)} × activity ${t.activity_factor} = TDEE ${fmt(t.tdee)} kcal. Meals: ${Object.entries(t.meal_split).map(([m, k]) => `${MEAL_LABEL[m]} ${fmt(k)}`).join(" · ")}.</div></div></details>
+        <div class="small muted" style="margin-top:6px">Базовый обмен ${fmt(t.bmr)} × активность ${num(t.activity_factor)} = расход ${fmt(t.tdee)} ккал. По приёмам пищи: ${Object.entries(t.meal_split).map(([m, k]) => `${MEAL_LABEL[m].toLowerCase()} ${fmt(k)}`).join(" · ")}.</div></div></details>
       ${t.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}`;
     $("#targetsCard").classList.remove("hidden");
   }
@@ -766,7 +788,7 @@
       await api("/api/profile", { method: "PUT", body });
       const first = !state.user.has_profile;
       state.user.has_profile = true;
-      toast("Profile saved");
+      toast("Профиль сохранён");
       if (first) switchTab("today"); else loadProfile();
     } catch (err) { $("#profileError").textContent = err.message; }
     finally { btn.disabled = false; }

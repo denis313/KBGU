@@ -53,11 +53,11 @@ def test_public_calculator(client):
 
 
 def test_food_search_and_custom_food(client, auth):
-    assert any(f["name"] == "Banana" for f in client.get("/api/foods?q=bana", headers=auth).json())
+    assert any(f["name"] == "Банан" for f in client.get("/api/foods?q=бана", headers=auth).json())  # case-insensitive Cyrillic
     r = client.post("/api/foods", headers=auth, json={
-        "name": "Grandma's pie", "kcal": 320, "protein": 5, "fat": 15, "carbs": 40})
+        "name": "Бабушкин пирог", "kcal": 320, "protein": 5, "fat": 15, "carbs": 40})
     assert r.status_code == 201 and r.json()["is_custom"]
-    assert client.get("/api/foods?q=grandma", headers=auth).json()[0]["id"] == r.json()["id"]
+    assert client.get("/api/foods?q=бабушкин", headers=auth).json()[0]["id"] == r.json()["id"]
     assert client.delete(f"/api/foods/{r.json()['id']}", headers=auth).status_code == 204
 
 
@@ -69,7 +69,7 @@ def test_dishes_filter_by_diet(client, auth):
 
 
 def test_diary_flow(client, auth):
-    banana = client.get("/api/foods?q=banana", headers=auth).json()[0]
+    banana = client.get("/api/foods?q=банан", headers=auth).json()[0]
     dish = client.get("/api/dishes?meal_type=lunch", headers=auth).json()[0]
 
     r = client.post("/api/diary", headers=auth, json={"meal_type": "snack", "food_id": banana["id"], "grams": 120})
@@ -97,7 +97,7 @@ def test_diary_flow(client, auth):
 
 
 def test_users_cannot_touch_each_others_entries(client, auth):
-    food = client.get("/api/foods?q=apple", headers=auth).json()[0]
+    food = client.get("/api/foods?q=яблоко", headers=auth).json()[0]
     entry = client.post("/api/diary", headers=auth, json={"meal_type": "snack", "food_id": food["id"], "grams": 100}).json()
     other = client.post("/api/auth/register", json={"email": "eve@example.com", "password": "password1", "name": "Eve"}).json()
     headers = {"Authorization": f"Bearer {other['access_token']}"}
@@ -147,4 +147,4 @@ def test_weight_log_updates_profile(client, auth):
 
 def test_web_page_is_served(client):
     r = client.get("/")
-    assert r.status_code == 200 and "Calorie Tracker" in r.text
+    assert r.status_code == 200 and "Трекер калорий" in r.text and 'lang="ru"' in r.text

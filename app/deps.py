@@ -22,7 +22,7 @@ def get_current_user(
     if user is None:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
-            "Not authenticated",
+            "Требуется вход",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
@@ -33,7 +33,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 def get_current_profile(user: CurrentUser) -> Profile:
     if user.profile is None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Complete your profile first")
+        raise HTTPException(status.HTTP_409_CONFLICT, "Сначала заполните профиль")
     return user.profile
 
 

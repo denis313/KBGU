@@ -61,7 +61,7 @@ def _recent_dish_ids(db: DbSession, user_id: int, day: date) -> set[int]:
 def _owned_plan(db: DbSession, user: User, plan_id: int) -> MenuPlan:
     plan = db.get(MenuPlan, plan_id)
     if plan is None or plan.user_id != user.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Menu plan not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Меню не найдено")
     return plan
 
 
@@ -110,7 +110,7 @@ def generate(data: MenuGenerateIn, profile: CurrentProfile, db: DbSession) -> Me
 def get_plan(user: CurrentUser, db: DbSession, day: date = Query(default_factory=date.today, alias="date")) -> MenuPlanOut:
     plan = db.scalar(select(MenuPlan).where(MenuPlan.user_id == user.id, MenuPlan.plan_date == day))
     if plan is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "No menu for this date")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "На этот день меню ещё нет")
     return plan_out(plan)
 
 
@@ -120,7 +120,7 @@ def swap_item(plan_id: int, item_id: int, profile: CurrentProfile, db: DbSession
     plan = _owned_plan(db, profile.user, plan_id)
     row = next((i for i in plan.items if i.id == item_id), None)
     if row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Menu item not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Блюдо в меню не найдено")
     try:
         item = swap_dish(
             _catalogue(db),
@@ -133,7 +133,7 @@ def swap_item(plan_id: int, item_id: int, profile: CurrentProfile, db: DbSession
             seed=seed,
         )
     except NoDishesError as e:
-        raise HTTPException(422, "No other dishes fit this meal") from e
+        raise HTTPException(422, "Других подходящих блюд для этого приёма пищи нет") from e
     _fill_item(row, item)
     db.commit()
     return plan_out(plan)

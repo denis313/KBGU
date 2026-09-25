@@ -44,21 +44,21 @@ def add_entry(db: DbSession, user: User, eaten_on: date, meal_type: MealType, *,
 def _owned_entry(db: DbSession, user: User, entry_id: int) -> DiaryEntry:
     entry = db.get(DiaryEntry, entry_id)
     if entry is None or entry.user_id != user.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Diary entry not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Запись в дневнике не найдена")
     return entry
 
 
 def _visible_food(db: DbSession, user: User, food_id: int) -> Food:
     food = db.get(Food, food_id)
     if food is None or food.owner_id not in (None, user.id):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Food not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Продукт не найден")
     return food
 
 
 def _dish(db: DbSession, dish_id: int) -> Dish:
     dish = db.get(Dish, dish_id)
     if dish is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Dish not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Блюдо не найдено")
     return dish
 
 

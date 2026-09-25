@@ -63,7 +63,7 @@ class ProfileIn(BodyBase):
         from app.services.calories import age_on
 
         if not 14 <= age_on(v) <= 100:
-            raise ValueError("age must be between 14 and 100")
+            raise ValueError("возраст должен быть от 14 до 100 лет")
         return v
 
     @field_validator("excluded_allergens")
@@ -71,7 +71,7 @@ class ProfileIn(BodyBase):
     def known_allergens(cls, v: list[str]) -> list[str]:
         unknown = set(v) - set(ALLERGENS)
         if unknown:
-            raise ValueError(f"unknown allergens: {sorted(unknown)}; allowed: {ALLERGENS}")
+            raise ValueError(f"неизвестные аллергены: {sorted(unknown)}; допустимые: {ALLERGENS}")
         return sorted(set(v))
 
 
@@ -174,9 +174,9 @@ class DiaryEntryIn(BaseModel):
     @model_validator(mode="after")
     def one_source(self) -> "DiaryEntryIn":
         if (self.food_id is None) == (self.dish_id is None):
-            raise ValueError("provide exactly one of food_id or dish_id")
+            raise ValueError("укажите либо продукт, либо блюдо")
         if self.food_id is not None and self.grams is None:
-            raise ValueError("grams is required for a food")
+            raise ValueError("для продукта укажите вес в граммах")
         return self
 
 

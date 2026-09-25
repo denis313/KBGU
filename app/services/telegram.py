@@ -39,24 +39,24 @@ class TelegramUser:
 
 def validate_init_data(init_data: str, bot_token: str, max_age: int, now: float | None = None) -> TelegramUser:
     if not bot_token:
-        raise InitDataError("Telegram login is not configured on the server")
+        raise InitDataError("вход через Telegram не настроен на сервере")
     fields = dict(parse_qsl(init_data, keep_blank_values=True, strict_parsing=False))
     received_hash = fields.pop("hash", "")
     if not received_hash:
-        raise InitDataError("initData has no hash")
+        raise InitDataError("в данных Telegram нет подписи (hash)")
 
     data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(fields.items()))
     secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
     expected = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, received_hash):
-        raise InitDataError("initData signature is invalid")
+        raise InitDataError("подпись данных Telegram неверна (проверьте токен бота)")
 
     try:
         auth_date = int(fields.get("auth_date", "0"))
     except ValueError as e:
-        raise InitDataError("initData auth_date is invalid") from e
+        raise InitDataError("некорректная дата авторизации Telegram") from e
     if (now if now is not None else time.time()) - auth_date > max_age:
-        raise InitDataError("initData has expired, reopen the app")
+        raise InitDataError("данные Telegram устарели, откройте приложение заново")
 
     try:
         user = json.loads(fields["user"])
@@ -67,7 +67,7 @@ def validate_init_data(init_data: str, bot_token: str, max_age: int, now: float 
             username=user.get("username", ""),
         )
     except (KeyError, ValueError, TypeError) as e:
-        raise InitDataError("initData has no user") from e
+        raise InitDataError("в данных Telegram нет пользователя") from e
 
 
 def bot_api(method: str, **params) -> dict:

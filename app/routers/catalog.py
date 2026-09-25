@@ -35,7 +35,7 @@ def create_food(data: FoodIn, user: CurrentUser, db: DbSession) -> FoodOut:
 def delete_food(food_id: int, user: CurrentUser, db: DbSession) -> None:
     food = db.get(Food, food_id)
     if food is None or food.owner_id != user.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Custom food not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Ваш продукт не найден")
     db.delete(food)
     db.commit()
 
@@ -66,5 +66,5 @@ def list_dishes(
 def get_dish(dish_id: int, db: DbSession, _: CurrentUser) -> DishOut:
     dish = db.get(Dish, dish_id)
     if dish is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Dish not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Блюдо не найдено")
     return dish_out(dish)

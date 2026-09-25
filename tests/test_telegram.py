@@ -31,10 +31,10 @@ def test_valid_init_data_returns_user():
 
 
 @pytest.mark.parametrize("data, error", [
-    (init_data(token="999:OTHER"), "signature"),
-    (init_data(auth_date=int(time.time()) - 7200), "expired"),
-    (init_data().replace("ivan", "evil"), "signature"),
-    ("user=%7B%7D", "no hash"),
+    (init_data(token="999:OTHER"), "неверна"),
+    (init_data(auth_date=int(time.time()) - 7200), "устарели"),
+    (init_data().replace("ivan", "evil"), "неверна"),
+    ("user=%7B%7D", "нет подписи"),
 ])
 def test_invalid_init_data_is_rejected(data, error):
     with pytest.raises(InitDataError, match=error):

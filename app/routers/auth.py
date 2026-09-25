@@ -22,7 +22,7 @@ def _find_by_email(db: DbSession, email: str) -> User | None:
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
 def register(data: RegisterIn, db: DbSession) -> TokenOut:
     if _find_by_email(db, data.email):
-        raise HTTPException(status.HTTP_409_CONFLICT, "Email is already registered")
+        raise HTTPException(status.HTTP_409_CONFLICT, "Этот email уже зарегистрирован")
     user = User(email=data.email.lower(), name=data.name.strip(), password_hash=hash_password(data.password))
     db.add(user)
     db.commit()
@@ -33,7 +33,7 @@ def register(data: RegisterIn, db: DbSession) -> TokenOut:
 def login(data: LoginIn, db: DbSession) -> TokenOut:
     user = _find_by_email(db, data.email)
     if user is None or user.password_hash is None or not verify_password(data.password, user.password_hash):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Неверный email или пароль")
     return TokenOut(access_token=create_access_token(user.id), user=user_out(user))
 
 
