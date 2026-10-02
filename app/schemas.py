@@ -123,15 +123,27 @@ class Nutrition(BaseModel):
     carbs: float
 
 
-class FoodIn(Nutrition):
-    """A user's own food; nutrition per 100 g."""
+class NutritionIn(Nutrition):
+    """Nutrition per 100 g entered by a user."""
 
-    name: str = Field(min_length=1, max_length=120)
-    food_group: Literal["meat", "fish", "dairy", "egg", "plant"] = "plant"
     kcal: float = Field(ge=0, le=900)
     protein: float = Field(ge=0, le=100)
     fat: float = Field(ge=0, le=100)
     carbs: float = Field(ge=0, le=100)
+
+    @model_validator(mode="after")
+    def macros_fit_in_100g(self):
+        # Small tolerance for rounding on package labels.
+        if self.protein + self.fat + self.carbs > 101:
+            raise ValueError("белки, жиры и углеводы вместе не могут превышать 100 г на 100 г продукта")
+        return self
+
+
+class FoodIn(NutritionIn):
+    """A food contributed to the shared catalogue."""
+
+    name: str = Field(min_length=1, max_length=120)
+    food_group: Literal["meat", "fish", "dairy", "egg", "plant"] = "plant"
     fiber: float = Field(default=0, ge=0, le=100)
     allergens: list[str] = []
 
@@ -148,21 +160,20 @@ class FoodIn(Nutrition):
     def known_allergens(cls, v: list[str]) -> list[str]:
         return ProfileIn.known_allergens(v)
 
-    @model_validator(mode="after")
-    def macros_fit_in_100g(self) -> "FoodIn":
-        # Small tolerance for rounding on package labels.
-        if self.protein + self.fat + self.carbs > 101:
-            raise ValueError("белки, жиры и углеводы вместе не могут превышать 100 г на 100 г продукта")
-        return self
 
+class FoodOut(Nutrition):
+    """A catalogue food as one user sees it: kcal/protein/fat/carbs are their effective values."""
 
-class FoodOut(Nutrition, ORM):
     id: int
     name: str
     food_group: str
     fiber: float
     allergens: list[str]
-    is_custom: bool
+    shared: Nutrition  # values in the common catalogue
+    personal: bool  # the user's own values replace the shared ones
+    community: bool  # contributed by a user, not part of the curated base
+    created_by_me: bool
+    can_edit_shared: bool  # the contributor may still change it for everyone
 
 
 class IngredientOut(BaseModel):

@@ -1,7 +1,7 @@
 from sqlalchemy import func, select
 
 from app.database import SessionLocal
-from app.models import DiaryEntry, Dish, Food, MealType, User
+from app.models import DiaryEntry, Dish, Food, FoodOverride, MealType, User
 from app.seed.__main__ import seed
 from app.seed.data import DISHES, FOODS
 
@@ -24,9 +24,26 @@ def test_seed_renames_english_catalogue_in_place():
 
         seed(db)
 
-        assert db.scalar(select(func.count()).select_from(Food).where(Food.owner_id.is_(None))) == len(FOODS)
+        assert db.scalar(select(func.count()).select_from(Food).where(Food.created_by_id.is_(None))) == len(FOODS)
         assert db.scalar(select(func.count()).select_from(Dish)) == len(DISHES)
         assert db.get(Food, food_id).name == "Банан"
         assert db.get(Dish, dish_id).name == "Яблоко с миндалём"
         db.refresh(entry)
         assert entry.name == "Яблоко с миндалём"
+
+
+def test_seed_adopts_user_food_with_curated_name_and_keeps_their_values():
+    with SessionLocal() as db:
+        user = User(email="contrib@example.com", password_hash="x", name="C")
+        db.add(user)
+        db.flush()
+        honey = db.scalar(select(Food).where(Food.name == "Мёд"))
+        honey.name, honey.created_by_id, honey.kcal = "мёд", user.id, 330  # as if the user had added it
+        db.commit()
+
+        seed(db)
+
+        db.refresh(honey)
+        assert (honey.name, honey.created_by_id, honey.kcal) == ("Мёд", None, FOODS["Мёд"][1])
+        own = db.get(FoodOverride, (user.id, honey.id))
+        assert own is not None and own.kcal == 330

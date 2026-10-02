@@ -34,8 +34,10 @@ def database():
 def clean_users():
     yield
     with engine.begin() as conn:
-        # Not TRUNCATE ... CASCADE: that would also wipe the shared catalogue via foods.owner_id.
-        # ON DELETE CASCADE removes each user's profile, diary, plans and custom foods.
+        # Not TRUNCATE ... CASCADE: that would also wipe the shared catalogue via foods.created_by_id.
+        # Foods users contributed stay in the catalogue when their author leaves, so drop them first;
+        # ON DELETE CASCADE removes each user's profile, diary, plans and personal food values.
+        conn.execute(text("DELETE FROM foods WHERE created_by_id IS NOT NULL"))
         conn.execute(text("DELETE FROM users"))
         conn.execute(text("ALTER SEQUENCE users_id_seq RESTART"))
 

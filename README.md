@@ -81,7 +81,17 @@ meals nobody would actually cook.
 ## Data model (PostgreSQL, SQLAlchemy ORM)
 
 `users` 1–1 `profiles` · `users` 1–N `weight_logs`, `diary_entries`, `menu_plans` 1–N `menu_plan_items`
-`foods` (shared catalogue, plus custom foods with `owner_id`) N–M `dishes` through `dish_ingredients`
+`foods` (one catalogue shared by all users; `created_by_id` marks foods users contributed) N–M `dishes` through `dish_ingredients`
+`users` N–M `foods` through `food_overrides` (a user's own nutrition values for a food)
+
+**Shared food catalogue.** A food that any user adds goes into the common
+catalogue, and everyone can find and log it. Names are unique
+case-insensitively, so the same food is not added twice. A user who disagrees
+with a food's calories or macros saves their own values. These are applied
+only for that user: in search, in the diary, in dish nutrition and in menu
+generation. The contributor can still fix a food for everyone until another
+user logs it or saves their own values for it. After that the shared numbers
+are frozen, and changes, including the contributor's, become personal.
 
 Diary entries and menu items store a **nutrition snapshot**, so later catalogue
 edits don't rewrite a user's history. The schema uses PostgreSQL-native enums
@@ -96,7 +106,9 @@ and `ARRAY` columns (allergens). Migrations are in `alembic/versions`.
 | `GET/PUT /api/profile`, `GET /api/profile/targets` | Body data and preferences, and the computed energy plan |
 | `POST /api/calculator` | Public calculator (no account needed) |
 | `GET/POST /api/weights` | Weigh-ins. The latest one updates the profile and the targets. |
-| `GET /api/foods[?q=&mine=true]`, `POST /api/foods`, `PUT/DELETE /api/foods/{id}`, `GET /api/dishes[/{id}]` | Catalogue search and the user's own foods: private, nutrition per 100 g, editable. Diary entries keep their numbers after an edit or delete. |
+| `GET /api/foods[?q=&mine=true]`, `POST /api/foods`, `PUT/DELETE /api/foods/{id}` | Shared catalogue. Search returns each user's effective values. `POST` adds a food for everyone. `PUT`/`DELETE` are for the contributor only, while nobody else uses the food. |
+| `PUT/DELETE /api/foods/{id}/personal` | Save or reset the user's own nutrition values for a food. Diary entries keep the numbers they were logged with. |
+| `GET /api/dishes[/{id}]` | Ready-made dishes, with nutrition computed from the user's effective food values |
 | `GET /api/diary?date=`, `POST/PATCH/DELETE /api/diary[/{id}]`, `GET /api/diary/history` | Food diary |
 | `POST /api/menu/generate`, `GET /api/menu?date=`, `POST /api/menu/{id}/items/{item}/swap`, `POST /api/menu/{id}/log` | Menu generation |
 

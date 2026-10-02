@@ -4,8 +4,9 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 
 from app.deps import CurrentUser, DbSession
-from app.models import DiaryEntry, Dish, Food, MealType, User
+from app.models import DiaryEntry, Dish, Food, MealType, Overrides, User
 from app.schemas import DayTotalsOut, DaySummaryOut, DiaryEntryIn, DiaryEntryOut, DiaryEntryUpdate, Nutrition
+from app.services.foods import NUTRIENTS, effective, user_overrides
 from app.services.profiles import energy_plan
 
 router = APIRouter(prefix="/api/diary", tags=["diary"])
@@ -14,29 +15,31 @@ MEAL_ORDER = {m: i for i, m in enumerate(MealType)}
 
 
 def _apply_amount(entry: DiaryEntry, food: Food | None, dish: Dish | None,
-                  grams: float | None, servings: float | None) -> None:
-    """Fill the entry's nutrition snapshot from a food (by grams) or a dish (by servings)."""
+                  grams: float | None, servings: float | None, overrides: Overrides) -> None:
+    """Fill the entry's nutrition snapshot from a food (by grams) or a dish (by servings),
+    using the user's own food values where they have them."""
     if food is not None:
         factor = grams / 100
         entry.name, entry.grams, entry.servings = food.name, grams, None
-        src = food
+        values = {n: getattr(effective(food, overrides), n) for n in NUTRIENTS}
     else:
         servings = servings if servings is not None else (grams / dish.grams if grams else 1.0)
         factor = servings
         entry.name, entry.grams, entry.servings = dish.name, dish.grams * servings, servings
-        src = dish
-    entry.kcal = round(src.kcal * factor, 1)
-    entry.protein = round(src.protein * factor, 1)
-    entry.fat = round(src.fat * factor, 1)
-    entry.carbs = round(src.carbs * factor, 1)
+        values = dish.totals(overrides)
+    for n in NUTRIENTS:
+        setattr(entry, n, round(values[n] * factor, 1))
 
 
 def add_entry(db: DbSession, user: User, eaten_on: date, meal_type: MealType, *,
               food: Food | None = None, dish: Dish | None = None,
-              grams: float | None = None, servings: float | None = None) -> DiaryEntry:
+              grams: float | None = None, servings: float | None = None,
+              overrides: Overrides | None = None) -> DiaryEntry:
     entry = DiaryEntry(user_id=user.id, eaten_on=eaten_on, meal_type=meal_type,
                        food_id=food.id if food else None, dish_id=dish.id if dish else None)
-    _apply_amount(entry, food, dish, grams, servings)
+    if overrides is None:
+        overrides = user_overrides(db, user.id)
+    _apply_amount(entry, food, dish, grams, servings, overrides)
     db.add(entry)
     return entry
 
@@ -48,9 +51,9 @@ def _owned_entry(db: DbSession, user: User, entry_id: int) -> DiaryEntry:
     return entry
 
 
-def _visible_food(db: DbSession, user: User, food_id: int) -> Food:
+def _food(db: DbSession, food_id: int) -> Food:
     food = db.get(Food, food_id)
-    if food is None or food.owner_id not in (None, user.id):
+    if food is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Продукт не найден")
     return food
 
@@ -113,7 +116,7 @@ def history(user: CurrentUser, db: DbSession, days: int = Query(7, ge=1, le=365)
 
 @router.post("", response_model=DiaryEntryOut, status_code=status.HTTP_201_CREATED)
 def create_entry(data: DiaryEntryIn, user: CurrentUser, db: DbSession) -> DiaryEntry:
-    food = _visible_food(db, user, data.food_id) if data.food_id is not None else None
+    food = _food(db, data.food_id) if data.food_id is not None else None
     dish = _dish(db, data.dish_id) if data.dish_id is not None else None
     entry = add_entry(db, user, data.eaten_on, data.meal_type, food=food, dish=dish,
                       grams=data.grams, servings=data.servings)
@@ -139,9 +142,9 @@ def update_entry(entry_id: int, data: DiaryEntryUpdate, user: CurrentUser, db: D
                 setattr(entry, attr, round(getattr(entry, attr) * factor, 1))
         elif food is not None:
             grams = data.grams if data.grams is not None else entry.grams
-            _apply_amount(entry, food, None, grams, None)
+            _apply_amount(entry, food, None, grams, None, user_overrides(db, user.id, [food.id]))
         else:
-            _apply_amount(entry, None, dish, data.grams, data.servings)
+            _apply_amount(entry, None, dish, data.grams, data.servings, user_overrides(db, user.id))
     db.commit()
     return entry
 

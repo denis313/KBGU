@@ -1,7 +1,7 @@
 """Glue between ORM rows and the pure calculation services."""
 
-from app.models import Dish, Food, Profile
-from app.schemas import DishOut, FoodOut, IngredientOut, ProfileOut
+from app.models import Dish, Overrides, Profile
+from app.schemas import DishOut, IngredientOut, ProfileOut
 from app.services.calories import BodyParams, EnergyPlan, age_on, calculate
 from app.services.menu import DishOption
 
@@ -40,22 +40,9 @@ def profile_out(profile: Profile) -> ProfileOut:
     )
 
 
-def food_out(food: Food) -> FoodOut:
-    return FoodOut(
-        id=food.id,
-        name=food.name,
-        food_group=food.food_group.value,
-        kcal=food.kcal,
-        protein=food.protein,
-        fat=food.fat,
-        carbs=food.carbs,
-        fiber=food.fiber,
-        allergens=food.allergens,
-        is_custom=food.owner_id is not None,
-    )
-
-
-def dish_out(dish: Dish) -> DishOut:
+def dish_out(dish: Dish, overrides: Overrides | None = None) -> DishOut:
+    """A dish as one user sees it: their own food values are used where they have them."""
+    t = dish.totals(overrides)
     return DishOut(
         id=dish.id,
         name=dish.name,
@@ -63,11 +50,11 @@ def dish_out(dish: Dish) -> DishOut:
         description=dish.description,
         prep_minutes=dish.prep_minutes,
         grams=round(dish.grams),
-        kcal=round(dish.kcal),
-        protein=round(dish.protein, 1),
-        fat=round(dish.fat, 1),
-        carbs=round(dish.carbs, 1),
-        fiber=round(dish.fiber, 1),
+        kcal=round(t["kcal"]),
+        protein=round(t["protein"], 1),
+        fat=round(t["fat"], 1),
+        carbs=round(t["carbs"], 1),
+        fiber=round(t["fiber"], 1),
         diets=dish.diets,
         allergens=dish.allergens,
         ingredients=[
@@ -76,15 +63,16 @@ def dish_out(dish: Dish) -> DishOut:
     )
 
 
-def dish_option(dish: Dish) -> DishOption:
+def dish_option(dish: Dish, overrides: Overrides | None = None) -> DishOption:
+    t = dish.totals(overrides)
     return DishOption(
         id=dish.id,
         name=dish.name,
         meal_type=dish.meal_type,
-        kcal=dish.kcal,
-        protein=dish.protein,
-        fat=dish.fat,
-        carbs=dish.carbs,
+        kcal=t["kcal"],
+        protein=t["protein"],
+        fat=t["fat"],
+        carbs=t["carbs"],
         grams=dish.grams,
         diets=tuple(dish.diets),
         allergens=tuple(dish.allergens),

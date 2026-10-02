@@ -4,16 +4,16 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models import DiaryEntry, Dish, DishIngredient, Food, FoodGroup, MealType, MenuPlanItem
+from app.models import DiaryEntry, Dish, DishIngredient, Food, FoodGroup, FoodOverride, MealType, MenuPlanItem
 from app.seed.data import DISHES, FOODS
 from app.seed.translations import DISH_NAMES_RU, FOOD_NAMES_RU
 
 
 def rename_legacy(db: Session) -> None:
     """Rename rows from the English catalogue so the upsert below updates them in place."""
-    foods = {f.name: f for f in db.scalars(select(Food).where(Food.owner_id.is_(None)))}
+    foods = {f.name: f for f in db.scalars(select(Food))}
     for old, new in FOOD_NAMES_RU.items():
-        if old in foods and new not in foods:
+        if old in foods and foods[old].created_by_id is None and new not in foods:
             foods[old].name = new
             db.execute(update(DiaryEntry).where(DiaryEntry.food_id == foods[old].id).values(name=new))
     dishes = {d.name: d for d in db.scalars(select(Dish))}
@@ -27,9 +27,19 @@ def rename_legacy(db: Session) -> None:
 
 def seed(db: Session) -> tuple[int, int]:
     rename_legacy(db)
-    foods = {f.name: f for f in db.scalars(select(Food).where(Food.owner_id.is_(None)))}
+    # Names are unique case-insensitively across the shared catalogue. A food a user
+    # contributed under a curated name is adopted into the curated base.
+    by_key = {f.name.lower(): f for f in db.scalars(select(Food))}
+    foods = {}
     for name, (group, kcal, protein, fat, carbs, fiber, allergens) in FOODS.items():
-        food = foods.get(name) or Food(name=name)
+        food = by_key.get(name.lower()) or Food()
+        contributor = food.created_by_id
+        if contributor is not None and (food.kcal, food.protein, food.fat, food.carbs) != (kcal, protein, fat, carbs):
+            # Keep the contributor's numbers as their personal values.
+            if db.get(FoodOverride, (contributor, food.id)) is None:
+                db.add(FoodOverride(user_id=contributor, food_id=food.id, kcal=food.kcal,
+                                    protein=food.protein, fat=food.fat, carbs=food.carbs))
+        food.name, food.created_by_id = name, None
         food.food_group = FoodGroup(group)
         food.kcal, food.protein, food.fat, food.carbs, food.fiber = kcal, protein, fat, carbs, fiber
         food.allergens = allergens

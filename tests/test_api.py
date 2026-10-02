@@ -56,7 +56,7 @@ def test_food_search_and_custom_food(client, auth):
     assert any(f["name"] == "Банан" for f in client.get("/api/foods?q=бана", headers=auth).json())  # case-insensitive Cyrillic
     r = client.post("/api/foods", headers=auth, json={
         "name": "Бабушкин пирог", "kcal": 320, "protein": 5, "fat": 15, "carbs": 40})
-    assert r.status_code == 201 and r.json()["is_custom"]
+    assert r.status_code == 201 and r.json()["created_by_me"] and r.json()["community"]
     assert client.get("/api/foods?q=бабушкин", headers=auth).json()[0]["id"] == r.json()["id"]
     assert client.delete(f"/api/foods/{r.json()['id']}", headers=auth).status_code == 204
 
@@ -153,27 +153,90 @@ def test_web_page_is_served(client):
 CUSTOM = {"name": "Сырники мамины", "kcal": 220, "protein": 15, "fat": 10, "carbs": 18}
 
 
-def test_custom_food_crud_and_privacy(client, auth):
-    food = client.post("/api/foods", headers=auth, json=CUSTOM).json()
-    assert food["is_custom"] and food["name"] == "Сырники мамины"
+def register(client, email: str) -> dict[str, str]:
+    token = client.post("/api/auth/register", json={"email": email, "password": "password1", "name": "U"}).json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
 
-    # Own foods come first in search and can be listed on their own.
+
+def test_added_food_is_shared_with_everyone(client, auth):
+    food = client.post("/api/foods", headers=auth, json=CUSTOM).json()
+    assert food["created_by_me"] and food["can_edit_shared"] and not food["personal"]
+
+    # The author sees it first in search and in "my foods".
     assert client.get("/api/foods?q=сыр", headers=auth).json()[0]["id"] == food["id"]
     assert [f["id"] for f in client.get("/api/foods?mine=true", headers=auth).json()] == [food["id"]]
 
-    # Same name (any case) is rejected; editing works and keeps the id.
-    dup = client.post("/api/foods", headers=auth, json={**CUSTOM, "name": "сырники МАМИНЫ"})
-    assert dup.status_code == 409 and "уже есть" in dup.json()["detail"]
-    edited = client.put(f"/api/foods/{food['id']}", headers=auth, json={**CUSTOM, "kcal": 240}).json()
-    assert edited["id"] == food["id"] and edited["kcal"] == 240
+    # Another user finds it in the common catalogue and can log it.
+    other = register(client, "o@example.com")
+    found = client.get("/api/foods?q=сырники", headers=other).json()
+    assert [f["id"] for f in found] == [food["id"]] and not found[0]["created_by_me"] and found[0]["community"]
+    entry = client.post("/api/diary", headers=other, json={"meal_type": "snack", "food_id": food["id"], "grams": 100})
+    assert entry.status_code == 201 and entry.json()["kcal"] == 220
 
-    # Other users neither see nor change it.
-    other = client.post("/api/auth/register", json={"email": "o@example.com", "password": "password1", "name": "O"}).json()
-    oh = {"Authorization": f"Bearer {other['access_token']}"}
-    assert client.get("/api/foods?q=сырники", headers=oh).json() == []
-    assert client.put(f"/api/foods/{food['id']}", headers=oh, json=CUSTOM).status_code == 404
-    assert client.delete(f"/api/foods/{food['id']}", headers=oh).status_code == 404
-    assert client.post("/api/diary", headers=oh, json={"meal_type": "snack", "food_id": food["id"], "grams": 100}).status_code == 404
+    # Names are unique across the whole catalogue, for every user and any case.
+    dup = client.post("/api/foods", headers=other, json={**CUSTOM, "name": "сырники МАМИНЫ"})
+    assert dup.status_code == 409 and "уже есть в общей базе" in dup.json()["detail"]
+    assert client.post("/api/foods", headers=auth, json={**CUSTOM, "name": "банан"}).status_code == 409
+
+
+def test_contributor_can_fix_shared_values_until_others_use_them(client, auth):
+    food = client.post("/api/foods", headers=auth, json=CUSTOM).json()
+    fixed = client.put(f"/api/foods/{food['id']}", headers=auth, json={**CUSTOM, "kcal": 240}).json()
+    assert fixed["kcal"] == fixed["shared"]["kcal"] == 240
+
+    other = register(client, "o@example.com")
+    assert client.put(f"/api/foods/{food['id']}", headers=other, json=CUSTOM).status_code == 403
+    assert client.delete(f"/api/foods/{food['id']}", headers=other).status_code == 403
+    client.post("/api/diary", headers=other, json={"meal_type": "snack", "food_id": food["id"], "grams": 100})
+
+    # Once someone else logged it, the shared numbers are frozen even for the author.
+    assert client.get("/api/foods?mine=true", headers=auth).json()[0]["can_edit_shared"] is False
+    assert client.put(f"/api/foods/{food['id']}", headers=auth, json={**CUSTOM, "kcal": 260}).status_code == 409
+    assert client.delete(f"/api/foods/{food['id']}", headers=auth).status_code == 409
+
+
+def test_personal_values_apply_only_to_their_owner(client, auth):
+    banana = client.get("/api/foods?q=банан", headers=auth).json()[0]
+    assert banana["shared"]["kcal"] == 89 and not banana["community"]
+    # Catalogue foods cannot be changed for everyone, only for yourself.
+    assert client.put(f"/api/foods/{banana['id']}", headers=auth, json={**CUSTOM, "name": "Банан"}).status_code == 403
+
+    mine = client.put(f"/api/foods/{banana['id']}/personal", headers=auth,
+                      json={"kcal": 100, "protein": 1.5, "fat": 0.5, "carbs": 23}).json()
+    assert mine["personal"] and mine["kcal"] == 100 and mine["shared"]["kcal"] == 89
+    assert client.get("/api/foods?mine=true", headers=auth).json()[0]["id"] == banana["id"]
+    assert client.post("/api/diary", headers=auth, json={"meal_type": "snack", "food_id": banana["id"], "grams": 200}).json()["kcal"] == 200
+
+    other = register(client, "o@example.com")
+    theirs = client.get("/api/foods?q=банан", headers=other).json()[0]
+    assert theirs["kcal"] == 89 and not theirs["personal"]
+    assert client.post("/api/diary", headers=other, json={"meal_type": "snack", "food_id": banana["id"], "grams": 200}).json()["kcal"] == 178
+
+    # Personal values are validated like shared ones; equal-to-shared values remove the copy.
+    bad = client.put(f"/api/foods/{banana['id']}/personal", headers=auth, json={"kcal": 100, "protein": 60, "fat": 30, "carbs": 20})
+    assert bad.status_code == 422
+    same = client.put(f"/api/foods/{banana['id']}/personal", headers=auth, json=banana["shared"]).json()
+    assert not same["personal"]
+
+    client.put(f"/api/foods/{banana['id']}/personal", headers=auth, json={"kcal": 100, "protein": 1, "fat": 1, "carbs": 23})
+    reset = client.delete(f"/api/foods/{banana['id']}/personal", headers=auth).json()
+    assert not reset["personal"] and reset["kcal"] == 89
+    # Diary history keeps the numbers it was logged with.
+    assert client.get("/api/diary", headers=auth).json()["entries"][0]["kcal"] == 200
+
+
+def test_personal_values_flow_into_dishes_and_menus(client, auth):
+    dish = next(d for d in client.get("/api/dishes?meal_type=snack", headers=auth).json() if d["name"] == "Кефир с бананом")
+    banana_id = next(i["food_id"] for i in dish["ingredients"] if i["name"] == "Банан")
+    client.put(f"/api/foods/{banana_id}/personal", headers=auth, json={"kcal": 189, "protein": 1.1, "fat": 0.3, "carbs": 22.8})
+
+    mine = client.get(f"/api/dishes/{dish['id']}", headers=auth).json()
+    assert mine["kcal"] == dish["kcal"] + 100  # 100 g banana, +100 kcal per 100 g
+    other = register(client, "o@example.com")
+    assert client.get(f"/api/dishes/{dish['id']}", headers=other).json()["kcal"] == dish["kcal"]
+
+    logged = client.post("/api/diary", headers=auth, json={"meal_type": "snack", "dish_id": dish["id"], "servings": 1}).json()
+    assert round(logged["kcal"]) == mine["kcal"]
 
 
 def test_custom_food_validation(client, auth):

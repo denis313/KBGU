@@ -9,6 +9,7 @@ from app.models import DiaryEntry, Dish, MenuPlan, MenuPlanItem, User
 from app.routers.diary import add_entry
 from app.schemas import DiaryEntryOut, MenuGenerateIn, MenuPlanOut, Nutrition
 from app.services.menu import MenuItem, NoDishesError, Targets, generate_menu, swap_dish
+from app.services.foods import user_overrides
 from app.services.profiles import dish_option, energy_plan
 
 router = APIRouter(prefix="/api/menu", tags=["menu"])
@@ -65,8 +66,9 @@ def _owned_plan(db: DbSession, user: User, plan_id: int) -> MenuPlan:
     return plan
 
 
-def _catalogue(db: DbSession) -> list:
-    return [dish_option(d) for d in db.scalars(select(Dish))]
+def _catalogue(db: DbSession, user_id: int) -> list:
+    overrides = user_overrides(db, user_id)
+    return [dish_option(d, overrides) for d in db.scalars(select(Dish))]
 
 
 @router.post("/generate", response_model=MenuPlanOut, status_code=status.HTTP_201_CREATED)
@@ -75,7 +77,7 @@ def generate(data: MenuGenerateIn, profile: CurrentProfile, db: DbSession) -> Me
     targets = Targets(kcal=energy.target_kcal, protein=energy.protein_g, fat=energy.fat_g, carbs=energy.carbs_g)
     try:
         menu = generate_menu(
-            _catalogue(db),
+            _catalogue(db, profile.user_id),
             targets,
             energy.meal_split,
             diet=profile.diet_type.value,
@@ -123,7 +125,7 @@ def swap_item(plan_id: int, item_id: int, profile: CurrentProfile, db: DbSession
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Блюдо в меню не найдено")
     try:
         item = swap_dish(
-            _catalogue(db),
+            _catalogue(db, profile.user_id),
             row.meal_type,
             row.meal_target_kcal,
             protein_per_kcal=plan.target_protein / plan.target_kcal,
@@ -149,10 +151,12 @@ def log_plan(plan_id: int, data: LogMenuIn, user: CurrentUser, db: DbSession) ->
     plan = _owned_plan(db, user, plan_id)
     items = [i for i in plan.items if data.item_ids is None or i.id in data.item_ids]
     entries = []
+    overrides = user_overrides(db, user.id)
     for item in items:
         dish = db.get(Dish, item.dish_id) if item.dish_id else None
         if dish is None:
             continue
-        entries.append(add_entry(db, user, plan.plan_date, item.meal_type, dish=dish, servings=item.servings))
+        entries.append(add_entry(db, user, plan.plan_date, item.meal_type, dish=dish, servings=item.servings,
+                                 overrides=overrides))
     db.commit()
     return entries

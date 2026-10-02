@@ -24,6 +24,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -137,9 +138,15 @@ class WeightLog(Base):
 
 
 class Food(Base):
-    """A food with nutrition per 100 g. owner_id is NULL for the shared catalogue."""
+    """A food in the shared catalogue, nutrition per 100 g. Every user sees every food.
+
+    created_by_id is NULL for the curated base and set for foods users contributed.
+    A user who disagrees with the shared values keeps their own in FoodOverride.
+    Names are unique case-insensitively (index uq_foods_name_lower).
+    """
 
     __tablename__ = "foods"
+    __table_args__ = (Index("uq_foods_name_lower", text("lower(name)"), unique=True),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), index=True)
@@ -150,7 +157,27 @@ class Food(Base):
     carbs: Mapped[float] = mapped_column(Float)
     fiber: Mapped[float] = mapped_column(Float, default=0)
     allergens: Mapped[list[str]] = mapped_column(ARRAY(String(30)), default=list)
-    owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+
+
+class FoodOverride(Base):
+    """A user's own nutrition values for a shared food (per 100 g); only that user sees them."""
+
+    __tablename__ = "food_overrides"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    food_id: Mapped[int] = mapped_column(ForeignKey("foods.id", ondelete="CASCADE"), primary_key=True, index=True)
+    kcal: Mapped[float] = mapped_column(Float)
+    protein: Mapped[float] = mapped_column(Float)
+    fat: Mapped[float] = mapped_column(Float)
+    carbs: Mapped[float] = mapped_column(Float)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+# A user's overrides keyed by food id; nutrition lookups fall back to the shared food.
+Overrides = dict[int, FoodOverride]
 
 
 class Dish(Base):
@@ -168,8 +195,15 @@ class Dish(Base):
         back_populates="dish", cascade="all, delete-orphan", lazy="selectin"
     )
 
-    def _sum(self, attr: str) -> float:
-        return sum(getattr(i.food, attr) * i.grams / 100 for i in self.ingredients)
+    def _sum(self, attr: str, overrides: "Overrides | None" = None) -> float:
+        def value(i: "DishIngredient") -> float:
+            own = overrides.get(i.food_id) if overrides and attr != "fiber" else None
+            return getattr(own or i.food, attr)
+        return sum(value(i) * i.grams / 100 for i in self.ingredients)
+
+    def totals(self, overrides: "Overrides | None" = None) -> dict[str, float]:
+        """Nutrition of one serving, using the user's own food values where they have them."""
+        return {attr: self._sum(attr, overrides) for attr in ("kcal", "protein", "fat", "carbs", "fiber")}
 
     @property
     def grams(self) -> float:
