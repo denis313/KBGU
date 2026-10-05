@@ -65,6 +65,8 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
+  /* No text inflation on rotation; no double-tap zoom (pinch zoom still works). */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
   body {
     background: var(--bg); color: var(--text);
     font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -89,7 +91,9 @@
   .btn.block { width: 100%; }
   .icon-btn { border: 0; background: var(--surface-2); width: 36px; height: 36px; border-radius: 10px; cursor: pointer; display: inline-grid; place-items: center; }
   label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
-  input, select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  /* 16px or more: iOS (Safari and the Telegram WebView) zooms the whole page into any smaller
+     field on focus and never zooms back out. */
+  input, select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font-size: 16px; }
   input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chip { border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; font-size: 13px; background: var(--surface); cursor: pointer; }
