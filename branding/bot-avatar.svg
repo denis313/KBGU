@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#45ad7d"/>
+      <stop offset="1" stop-color="#1f5f43"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.35" cy="0.3" r="0.7">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="640" height="640" fill="url(#bg)"/>
+  <rect width="640" height="640" fill="url(#glow)"/>
+  <!-- calorie ring: track + progress (~78%), like the app's Today screen -->
+  <circle cx="320" cy="330" r="178" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="34"/>
+  <circle cx="320" cy="330" r="178" fill="none" stroke="#ffffff" stroke-width="34" stroke-linecap="round"
+          stroke-dasharray="872 1119" transform="rotate(-90 320 330)"/>
+  <!-- apple -->
+  <path d="M320 286 C 293 268, 240 268, 226 316 C 212 366, 240 424, 274 440 C 292 448, 305 440, 320 440
+           C 335 440, 348 448, 366 440 C 400 424, 428 366, 414 316 C 400 268, 347 268, 320 286 Z" fill="#ffffff"/>
+  <path d="M320 288 C 320 270, 316 256, 308 244" fill="none" stroke="#ffffff" stroke-width="11" stroke-linecap="round"/>
+  <path d="M326 272 C 326 238, 350 214, 386 212 C 386 246, 362 270, 326 272 Z" fill="#c6efb0"/>
+</svg>
